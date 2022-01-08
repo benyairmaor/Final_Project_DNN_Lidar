@@ -32,7 +32,7 @@ def draw_registration_result(source, target, transformation, title):
 # For pre prossecing the point cloud - make voxel and compute FPFH.
 def preprocess_point_cloud(pcd, voxel_size):
     pcd_down = pcd.voxel_down_sample(voxel_size)
-    radius_normal = voxel_size * 4
+    radius_normal = voxel_size * 3
     pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=50))
     radius_feature = voxel_size * 7
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=150))
@@ -50,6 +50,7 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init):
                       [0,0,0,1]]
     draw_registration_result(source, target, transformation, "Target Matching")
     source.transform(trans_init)
+    draw_registration_result(source, target, transformation, "Problem")
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
     return source, target, source_down, target_down, source_fpfh, target_fpfh
@@ -58,11 +59,12 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init):
 # Run global regestration by RANSAC
 def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh):
     distance_threshold = 0.1001
-    estimation_method = o3d.pipelines.registration.TransformationEstimationPointToPoint()
+    estimation_method = o3d.pipelines.registration.TransformationEstimationPointToPoint(True)
     ransac_n = 3
-    checkers = [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
+    checkers = [
+        o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
         o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)]
-    criteria = o3d.pipelines.registration.RANSACConvergenceCriteria(1000000, 0.9)
+    criteria = o3d.pipelines.registration.RANSACConvergenceCriteria(1000000, 0.999)
     seed = 1
 
     result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(source_down, target_down, source_fpfh, target_fpfh, True,
@@ -74,13 +76,13 @@ def execute_global_registration(source_down, target_down, source_fpfh, target_fp
 def refine_registration(source, target, result_ransac):
     distance_threshold = 0.1001
     result = o3d.pipelines.registration.registration_icp(source, target, distance_threshold, result_ransac.transformation,
-        o3d.pipelines.registration.TransformationEstimationPointToPoint())
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(True), o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 1000))
     return result
 
 
 if __name__ == '__main__':
 
-    directories = ['wood_autumn', 'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs', 'apartment' , 'hauptgebaude', 'plain']
+    directories = ['apartment', 'hauptgebaude', 'wood_autumn', 'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
     results = []
     avg_result_datasets = []
     iter_dataset = 0
@@ -97,7 +99,7 @@ if __name__ == '__main__':
             target_path = 'eth/' + directory + '/' + targets[i]
 
             # Init voxel for less num of point clouds.
-            voxel_size = 0.05  # means 5cm for this dataset ?
+            voxel_size = 0.1  # means 5cm for this dataset ?
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, source_path, target_path, translation_M[i])
@@ -123,7 +125,10 @@ if __name__ == '__main__':
         print("avg result of dataset", directory, "is", avg_result_datasets[iter_dataset][1])
         sum_datasets += avg_result_datasets[iter_dataset][1]
         iter_dataset += 1
+    
     total_avg = sum_datasets / len(avg_result_datasets)
+    print()
     for i in range(len(avg_result_datasets)):
-        print(directories[i], '\'s score: ', avg_result_datasets[i])
+        print(avg_result_datasets[i][0], '\'s score: ', avg_result_datasets[i][1])
+    print()
     print("total avarage = ", total_avg)
