@@ -44,12 +44,13 @@ def preprocess_point_cloud(pcd, voxel_size):
 def prepare_dataset(voxel_size, source_path, target_path, trans_init):
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
-    # transformation = [[1,0,0,0],
-    #                   [0,1,0,0],
-    #                   [0,0,1,0],
-    #                   [0,0,0,1]]
-    # draw_registration_result(source, target, transformation, "Target Matching")
+    transformation = [[1,0,0,0],
+                      [0,1,0,0],
+                      [0,0,1,0],
+                      [0,0,0,1]]
+    draw_registration_result(source, target, transformation, "Target Matching")
     source.transform(trans_init)
+    draw_registration_result(source, target, transformation, "Problem")
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
     return source, target, source_down, target_down, source_fpfh, target_fpfh
@@ -58,13 +59,12 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init):
 # Run global regestration by RANSAC
 def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh):
     distance_threshold = 0.1001
-    estimation_method = o3d.pipelines.registration.TransformationEstimationPointToPoint()
+    estimation_method = o3d.pipelines.registration.TransformationEstimationPointToPoint(True)
     ransac_n = 3
     checkers = [
         o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
         o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)]
-        # o3d.pipelines.registration.CorrespondenceCheckerBasedOnNormal(10)]
-    criteria = o3d.pipelines.registration.RANSACConvergenceCriteria(1000000, 0.9)
+    criteria = o3d.pipelines.registration.RANSACConvergenceCriteria(1000000, 0.999)
     seed = 1
 
     result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(source_down, target_down, source_fpfh, target_fpfh, True,
@@ -76,13 +76,13 @@ def execute_global_registration(source_down, target_down, source_fpfh, target_fp
 def refine_registration(source, target, result_ransac):
     distance_threshold = 0.1001
     result = o3d.pipelines.registration.registration_icp(source, target, distance_threshold, result_ransac.transformation,
-        o3d.pipelines.registration.TransformationEstimationPointToPoint())
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(True), o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 1000))
     return result
 
 
 if __name__ == '__main__':
 
-    directories = ['wood_autumn', 'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs', 'apartment' , 'hauptgebaude', 'plain']
+    directories = ['apartment', 'hauptgebaude', 'wood_autumn', 'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
     results = []
     avg_result_datasets = []
     iter_dataset = 0
@@ -120,7 +120,7 @@ if __name__ == '__main__':
             sum += results[iter_dataset][i][1]
             print(results[iter_dataset][i][0], "fitness =", fitness)
             print("avarage score until now =", sum / len(results[iter_dataset]))
-            # draw_registration_result(source, target, result_icp.transformation, "ICP result")
+            draw_registration_result(source, target, result_icp.transformation, "ICP result")
         avg_result_datasets.append([directory, sum / len(results[iter_dataset])])
         print("avg result of dataset", directory, "is", avg_result_datasets[iter_dataset][1])
         sum_datasets += avg_result_datasets[iter_dataset][1]
@@ -130,4 +130,5 @@ if __name__ == '__main__':
     print()
     for i in range(len(avg_result_datasets)):
         print(avg_result_datasets[i][0], '\'s score: ', avg_result_datasets[i][1])
+    print()
     print("total avarage = ", total_avg)
