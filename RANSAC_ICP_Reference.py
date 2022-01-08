@@ -32,7 +32,7 @@ def draw_registration_result(source, target, transformation, title):
 # For pre prossecing the point cloud - make voxel and compute FPFH.
 def preprocess_point_cloud(pcd, voxel_size):
     pcd_down = pcd.voxel_down_sample(voxel_size)
-    radius_normal = voxel_size * 4
+    radius_normal = voxel_size * 3
     pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=50))
     radius_feature = voxel_size * 7
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=150))
@@ -44,11 +44,11 @@ def preprocess_point_cloud(pcd, voxel_size):
 def prepare_dataset(voxel_size, source_path, target_path, trans_init):
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
-    transformation = [[1,0,0,0],
-                      [0,1,0,0],
-                      [0,0,1,0],
-                      [0,0,0,1]]
-    draw_registration_result(source, target, transformation, "Target Matching")
+    # transformation = [[1,0,0,0],
+    #                   [0,1,0,0],
+    #                   [0,0,1,0],
+    #                   [0,0,0,1]]
+    # draw_registration_result(source, target, transformation, "Target Matching")
     source.transform(trans_init)
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
@@ -60,8 +60,10 @@ def execute_global_registration(source_down, target_down, source_fpfh, target_fp
     distance_threshold = 0.1001
     estimation_method = o3d.pipelines.registration.TransformationEstimationPointToPoint()
     ransac_n = 3
-    checkers = [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
+    checkers = [
+        o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
         o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)]
+        # o3d.pipelines.registration.CorrespondenceCheckerBasedOnNormal(10)]
     criteria = o3d.pipelines.registration.RANSACConvergenceCriteria(1000000, 0.9)
     seed = 1
 
@@ -97,7 +99,7 @@ if __name__ == '__main__':
             target_path = 'eth/' + directory + '/' + targets[i]
 
             # Init voxel for less num of point clouds.
-            voxel_size = 0.05  # means 5cm for this dataset ?
+            voxel_size = 0.1  # means 5cm for this dataset ?
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, source_path, target_path, translation_M[i])
@@ -118,12 +120,14 @@ if __name__ == '__main__':
             sum += results[iter_dataset][i][1]
             print(results[iter_dataset][i][0], "fitness =", fitness)
             print("avarage score until now =", sum / len(results[iter_dataset]))
-            draw_registration_result(source, target, result_icp.transformation, "ICP result")
+            # draw_registration_result(source, target, result_icp.transformation, "ICP result")
         avg_result_datasets.append([directory, sum / len(results[iter_dataset])])
         print("avg result of dataset", directory, "is", avg_result_datasets[iter_dataset][1])
         sum_datasets += avg_result_datasets[iter_dataset][1]
         iter_dataset += 1
+    
     total_avg = sum_datasets / len(avg_result_datasets)
+    print()
     for i in range(len(avg_result_datasets)):
-        print(directories[i], '\'s score: ', avg_result_datasets[i])
+        print(avg_result_datasets[i][0], '\'s score: ', avg_result_datasets[i][1])
     print("total avarage = ", total_avg)
