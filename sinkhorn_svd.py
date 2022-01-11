@@ -43,7 +43,7 @@ def prepare_dataset(voxel_size, source_path, target_path):
                               0.9374183747982869, 1.6731349336747363],
                              [0., 0., 0., 1.]])
     source.transform(trans_init)
-    # draw_registration_result(source, target, np.identity(4), "Original problem")
+    draw_registration_result(source, target, np.identity(4))
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
 
@@ -68,56 +68,113 @@ if __name__ == '__main__':
 
     # Prepare source weight for sinkhorn with dust bin.
     source_arr = np.asarray(source_fpfh.data).T
-    source_down_arr = np.asarray(source_down.points)
-    s = (np.ones((source_arr.shape[0]+1))*0.7)/source_arr.shape[0]
-    s[(source_arr.shape[0])] = 0.3
+    s = (np.ones((source_arr.shape[0]+1))*(2/3))/source_arr.shape[0]
+    s[(source_arr.shape[0])] = 1/3
     # Prepare target weight for sinkhorn with dust bin.
     target_arr = np.asarray(target_fpfh.data).T
-    target_down_arr = np.asarray(target_down.points)
-    t = (np.ones((target_arr.shape[0]+1))*0.7)/target_arr.shape[0]
-    t[(target_arr.shape[0])] = 0.3
+    t = (np.ones((target_arr.shape[0]+1))*(2/3))/target_arr.shape[0]
+    t[(target_arr.shape[0])] = 1/3
 
     # Print weights and shapes of a and b weight vectors.
-    print("source weight: ", s, "\ntarget weight: ", t)
-    print(source_arr.shape, target_arr.shape)
+    print("source FPFH shape: ", source_arr.shape,
+          "\ntarget FPFH shape: ", target_arr.shape)
+    print("source weight shape: ", s.shape,
+          "\ntarget weight shape: ", t.shape)
 
     # Prepare loss matrix for sinkhorn.
-    M = ot.dist(source_arr, target_arr)
+    M = np.asarray(ot.dist(source_arr, target_arr))
+
     # Prepare dust bin for loss matrix M.
     row_to_be_added = np.zeros(((target_arr.shape[0])))
     column_to_be_added = np.zeros(((source_arr.shape[0]+1)))
     M = np.vstack([M, row_to_be_added])
     M = np.vstack([M.T, column_to_be_added])
     M = M.T
-    # Print loss matrix and shape
-    print("Loss matrix m : ", M)
-    print(M.shape)
+    # Print loss matrix shape
+    print("Loss matrix m shape : ", M.shape)
 
-    # Run sinkhorn for find top correspondence.
-    sink = np.asarray(ot.sinkhorn(
-        s, t, M, 1000, numItermax=10000, verbose=True))
+    # Run sinkhorn with dust bin for find corr.
+    sink = np.asarray(ot.sinkhorn(s, t, M, 100, numItermax=1200,
+                      stopThr=1e-9, verbose=False, method='sinkhorn'))
 
-    # Take number of top corr from sinkhorn result and print result.
+    # Take number of top corr from sinkhorn result, take also the corr weights and print corr result.
     corr_size = 100
     corr = np.zeros((corr_size, 2))
-    for i in range(corr_size):
-        max = np.unravel_index(np.argmax(sink, axis=None), sink.shape)
-        corr[i][0], corr[i][1] = max[0], max[1]
+    corr_weights = np.zeros((corr_size, 1))
+    j = 0
+    while j < corr_size:
+        max = np.unravel_index(
+            np.argmax(sink, axis=None), sink.shape)
+        if (max[0] == (M.shape[0]-1)) or (max[1] == (M.shape[1]-1)):
+            sink[max[0], :] = 0
+            sink[:, max[1]] = 0
+            continue
+        corr[j][0], corr[j][1] = max[0], max[1]
+        # Save corr weights.
+        corr_weights[j] = sink[max[0], max[1]]
         sink[max[0], :] = 0
         sink[:, max[1]] = 0
-    print("Correspondence indexes set shape: ", corr.shape,
-          "\nCorrespondence indexes set: ", corr)
+        j = j+1
+    print("Correspondence set index values: ", corr)
 
-    print("check: ", source_down_arr.shape, corr.shape)
+    # Build numpy array for original points
+    source_arr = np.asarray(source_down.points)
+    target_arr = np.asarray(target_down.points)
 
     # Take only the relevant indexes (without dust bin)
-    corr_values_source = source_down_arr[corr[2:, 0].astype(int), :]
-    corr_values_target = target_down_arr[corr[2:, 1].astype(int), :]
-    corr_values = np.column_stack((corr_values_source, corr_values_target))
-    print("Correspondence vlaues set shape: ", corr_values.shape,
-          "\nCorrespondence vlaues set: ", corr_values)
-    corr_tensor = o3d.core.Tensor(corr_values)
+    corr_values_source = source_arr[corr[:, 0].astype(int), :]  # Yn
+    corr_values_target = target_arr[corr[:, 1].astype(int), :]  # Xn
+
+    # Norm to sum equal to one for corr weights.
+    corr_weights = (corr_weights / np.sum(corr_weights))  # Pn
+
+    # Calc the mean of source and target point/FPFH with respect to points weight.
+    source_mean = np.sum(corr_values_source*corr_weights,
+                         axis=0)/np.sum(corr_weights)  # Y0
+    target_mean = np.sum(corr_values_target*corr_weights,
+                         axis=0)/np.sum(corr_weights)  # X0
+
+    # Calc the mean-reduced coordinate for Y and X
+    corr_values_source = corr_values_source-source_mean  # An
+    corr_values_target = corr_values_target-target_mean  # Bn
+
+    print(corr_values_source.shape, corr_values_target.shape, corr_weights.shape,
+          np.vstack([corr_values_source, corr_values_target]).shape)
+
+    # Compute the cross-covariance matrix H
+    s_and_t = np.vstack([corr_values_source, corr_values_target])
+    H = np.cov(s_and_t.T)
+
+    # Print for debug
+    print("corr_values_source: ", corr_values_source.shape, "\ncorr_values_target: ",
+          corr_values_target.shape, "\ncorr_weights: ", corr_weights, "\ncorr_weights sum: ", np.sum(
+              corr_weights),
+          "\nsource mean shape: ", source_mean.shape, "\ntarget mean shape: ", target_mean.shape,
+          "\nsource mean: ", source_mean, "\ntarget mean: ", target_mean,
+          "\ncovariance matrix shape: ", H.shape, "\ncovariance matrix: ", H)
+
+    # Calc SVD to cross-covariance matrix H.
+    corr_tensor = o3d.core.Tensor(H)
     u, s, v_transpose = o3d.core.svd(corr_tensor)
-    print("SVD result - u shape: ", u.shape)
-    print("SVD result - s shape: ", s.shape)
-    print("SVD result - v_transpose shape: ", v_transpose.shape)
+    print("SVD result - u: ", u.numpy())
+    print("SVD result - s: ", s.numpy())
+    print("SVD result - v_transpose: ", v_transpose.numpy())
+
+    # Calc R and t from SVD result u and v transpose
+    R = (v_transpose.numpy().T)@(u.numpy().T)
+    t = source_mean-R@target_mean
+
+    # Calc the transform matrix from R and t
+    res = np.vstack([R.T, t])
+    res = res.T
+    res = np.vstack([res, np.array([0, 0, 0, 1])])
+    print("R: ", R, "\nt: ", t, "\ntransform res: ", res, "\ninvers of original: ", np.linalg.inv(np.asarray([[-0.5754197841861329, 0.817372954385317,
+                                                                                                              -0.028169583003715, 11.778369303008173],
+                                                                                                             [-0.7611987839242382, -0.5478349625282469,
+                                                                                                              -0.34706377682485917, 14.264281414042465],
+                                                                                                              [-0.2991128270727379, -0.17826471123330384,
+                                                                                                               0.9374183747982869, 1.6731349336747363],
+                                                                                                              [0., 0., 0., 1.]])))
+
+    # Check the transform matrix result
+    draw_registration_result(target, source, res)
