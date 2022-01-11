@@ -30,11 +30,6 @@ def preprocess_point_cloud(pcd, voxel_size):
 def prepare_dataset(voxel_size, source_path, target_path):
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
-
-    o = o3d.pipelines.registration.evaluate_registration(
-        source, target, 0.1001)
-    print("The original overlap: ", o)
-    # draw_registration_result(source, target, np.identity(4), "Original")
     trans_init = np.asarray([[-0.5754197841861329, 0.817372954385317,
                               -0.028169583003715, 11.778369303008173],
                              [-0.7611987839242382, -0.5478349625282469,
@@ -122,28 +117,38 @@ if __name__ == '__main__':
     target_arr = np.asarray(target_down.points)
 
     # Take only the relevant indexes (without dust bin)
-    corr_values_source = source_arr[corr[:, 0].astype(int), :]  # Yn
-    corr_values_target = target_arr[corr[:, 1].astype(int), :]  # Xn
+    corr_values_source = source_arr[corr[:, 0].astype(int), :]  # Xn
+    corr_values_target = target_arr[corr[:, 1].astype(int), :]  # Yn
+
+    pcdS = o3d.geometry.PointCloud()
+    pcdS.points = o3d.utility.Vector3dVector(corr_values_source)
+    pcdT = o3d.geometry.PointCloud()
+    pcdT.points = o3d.utility.Vector3dVector(corr_values_target)
+    draw_registration_result(pcdS, pcdT, np.identity(4))
 
     # Norm to sum equal to one for corr weights.
-    corr_weights = (corr_weights / np.sum(corr_weights))  # Pn
+    # corr_weights = (corr_weights / np.sum(corr_weights))  # Pn
 
     # Calc the mean of source and target point/FPFH with respect to points weight.
     source_mean = np.sum(corr_values_source*corr_weights,
-                         axis=0)/np.sum(corr_weights)  # Y0
-    target_mean = np.sum(corr_values_target*corr_weights,
                          axis=0)/np.sum(corr_weights)  # X0
+    target_mean = np.sum(corr_values_target*corr_weights,
+                         axis=0)/np.sum(corr_weights)  # Y0
 
     # Calc the mean-reduced coordinate for Y and X
-    corr_values_source = corr_values_source-source_mean  # An
-    corr_values_target = corr_values_target-target_mean  # Bn
+    corr_values_source = corr_values_source-source_mean  # Bn
+    corr_values_target = corr_values_target-target_mean  # An
 
-    print(corr_values_source.shape, corr_values_target.shape, corr_weights.shape,
-          np.vstack([corr_values_source, corr_values_target]).shape)
+    print(corr_values_source.shape, corr_values_target.shape,
+          corr_weights.shape, source_mean.shape, target_mean.shape)
 
     # Compute the cross-covariance matrix H
-    s_and_t = np.vstack([corr_values_source, corr_values_target])
-    H = np.cov(s_and_t.T)
+    # s_and_t = np.vstack([corr_values_source, corr_values_target])
+    # H = np.cov(s_and_t.T)
+    H = np.zeros((3, 3))
+    for i in range(corr_size):
+        H = H+((corr_values_target[i, :].T) @
+               (corr_values_source[i, :]))*corr_weights[i]
 
     # Print for debug
     print("corr_values_source: ", corr_values_source.shape, "\ncorr_values_target: ",
@@ -162,7 +167,7 @@ if __name__ == '__main__':
 
     # Calc R and t from SVD result u and v transpose
     R = (v_transpose.numpy().T)@(u.numpy().T)
-    t = source_mean-R@target_mean
+    t = target_mean-R@source_mean
 
     # Calc the transform matrix from R and t
     res = np.vstack([R.T, t])
@@ -177,4 +182,4 @@ if __name__ == '__main__':
                                                                                                               [0., 0., 0., 1.]])))
 
     # Check the transform matrix result
-    draw_registration_result(target, source, res)
+    draw_registration_result(source, target, res)
