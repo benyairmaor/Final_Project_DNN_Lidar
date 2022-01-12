@@ -10,18 +10,19 @@ def draw_registration_result(source, target, transformation):
     source_temp.paint_uniform_color([1, 0.706, 0])
     target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
-    o3d.visualization.draw_geometries([source_temp, target_temp])
+    o3d.visualization.draw_geometries(
+        [source_temp, target_temp], width=1280, height=720)
 
 
 # For pre prossecing the point cloud - make voxel and compute FPFH.
 def preprocess_point_cloud(pcd, voxel_size):
     pcd_down = pcd.voxel_down_sample(voxel_size)
-    radius_normal = voxel_size * 2
+    radius_normal = voxel_size * 5
     pcd_down.estimate_normals(
-        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
-    radius_feature = voxel_size * 5
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
+    radius_feature = voxel_size * 10
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(
-        pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
+        pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
     return pcd_down, pcd_fpfh
 
 
@@ -106,7 +107,7 @@ if __name__ == '__main__':
             continue
         corr[j][0], corr[j][1] = max[0], max[1]
         # Save corr weights.
-        corr_weights[j] = sink[max[0], max[1]]
+        corr_weights[j] = sink[max[0], max[1]]  # Pn
         sink[max[0], :] = 0
         sink[:, max[1]] = 0
         j = j+1
@@ -127,7 +128,7 @@ if __name__ == '__main__':
     draw_registration_result(pcdS, pcdT, np.identity(4))
 
     # Norm to sum equal to one for corr weights.
-    # corr_weights = (corr_weights / np.sum(corr_weights))  # Pn
+    # corr_weights = (corr_weights / np.sum(corr_weights))  # Pn norm
 
     # Calc the mean of source and target point/FPFH with respect to points weight.
     source_mean = np.sum(corr_values_source*corr_weights,
@@ -136,15 +137,13 @@ if __name__ == '__main__':
                          axis=0)/np.sum(corr_weights)  # Y0
 
     # Calc the mean-reduced coordinate for Y and X
-    corr_values_source = corr_values_source-source_mean  # Bn
-    corr_values_target = corr_values_target-target_mean  # An
+    corr_values_source = corr_values_source-source_mean  # An
+    corr_values_target = corr_values_target-target_mean  # Bn
 
     print(corr_values_source.shape, corr_values_target.shape,
           corr_weights.shape, source_mean.shape, target_mean.shape)
 
     # Compute the cross-covariance matrix H
-    # s_and_t = np.vstack([corr_values_source, corr_values_target])
-    # H = np.cov(s_and_t.T)
     H = np.zeros((3, 3))
     for i in range(corr_size):
         H = H+((corr_values_target[i, :].T) @
@@ -156,30 +155,31 @@ if __name__ == '__main__':
               corr_weights),
           "\nsource mean shape: ", source_mean.shape, "\ntarget mean shape: ", target_mean.shape,
           "\nsource mean: ", source_mean, "\ntarget mean: ", target_mean,
-          "\ncovariance matrix shape: ", H.shape, "\ncovariance matrix: ", H)
+          "\ncovariance matrix shape: ", H.shape, "\ncovariance matrix:\n", H)
 
     # Calc SVD to cross-covariance matrix H.
     corr_tensor = o3d.core.Tensor(H)
     u, s, v_transpose = o3d.core.svd(corr_tensor)
-    print("SVD result - u: ", u.numpy())
-    print("SVD result - s: ", s.numpy())
-    print("SVD result - v_transpose: ", v_transpose.numpy())
+    u, s, v_transpose = u.numpy(), s.numpy(), v_transpose.numpy()
+    print("SVD result - u:\n", u)
+    print("SVD result - s:\n", s)
+    print("SVD result - v_transpose:\n", v_transpose)
 
     # Calc R and t from SVD result u and v transpose
-    R = (v_transpose.numpy().T)@(u.numpy().T)
+    R = (v_transpose.T)@(u.T)
     t = target_mean-R@source_mean
 
     # Calc the transform matrix from R and t
     res = np.vstack([R.T, t])
     res = res.T
     res = np.vstack([res, np.array([0, 0, 0, 1])])
-    print("R: ", R, "\nt: ", t, "\ntransform res: ", res, "\ninvers of original: ", np.linalg.inv(np.asarray([[-0.5754197841861329, 0.817372954385317,
-                                                                                                              -0.028169583003715, 11.778369303008173],
-                                                                                                             [-0.7611987839242382, -0.5478349625282469,
-                                                                                                              -0.34706377682485917, 14.264281414042465],
-                                                                                                              [-0.2991128270727379, -0.17826471123330384,
-                                                                                                               0.9374183747982869, 1.6731349336747363],
-                                                                                                              [0., 0., 0., 1.]])))
+    print("R:\n", R, "\nt:\n", t, "\ntransform res:\n", res, "\ninvers of original:\n", np.linalg.inv(np.asarray([[-0.5754197841861329, 0.817372954385317,
+                                                                                                                  -0.028169583003715, 11.778369303008173],
+                                                                                                                 [-0.7611987839242382, -0.5478349625282469,
+                                                                                                                  -0.34706377682485917, 14.264281414042465],
+                                                                                                                 [-0.2991128270727379, -0.17826471123330384,
+                                                                                                                  0.9374183747982869, 1.6731349336747363],
+                                                                                                                 [0., 0., 0., 1.]])))
 
     # Check the transform matrix result
     draw_registration_result(source, target, res)
