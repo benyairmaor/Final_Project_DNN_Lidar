@@ -64,12 +64,12 @@ if __name__ == '__main__':
 
     # Prepare source weight for sinkhorn with dust bin.
     source_arr = np.asarray(source_fpfh.data).T
-    s = (np.ones((source_arr.shape[0]+1))*(2/3))/source_arr.shape[0]
-    s[(source_arr.shape[0])] = 1/3
+    s = (np.ones((source_arr.shape[0]+1))*(0.6))/source_arr.shape[0]
+    s[(source_arr.shape[0])] = 0.4
     # Prepare target weight for sinkhorn with dust bin.
     target_arr = np.asarray(target_fpfh.data).T
-    t = (np.ones((target_arr.shape[0]+1))*(2/3))/target_arr.shape[0]
-    t[(target_arr.shape[0])] = 1/3
+    t = (np.ones((target_arr.shape[0]+1))*(0.6))/target_arr.shape[0]
+    t[(target_arr.shape[0])] = 0.4
 
     # Print weights and shapes of a and b weight vectors.
     print("source FPFH shape: ", source_arr.shape,
@@ -94,17 +94,15 @@ if __name__ == '__main__':
                       stopThr=1e-9, verbose=False, method='sinkhorn'))
 
     # Take number of top corr from sinkhorn result, take also the corr weights and print corr result.
-    corr_size = 100
+    corr_size = 500
     corr = np.zeros((corr_size, 2))
     corr_weights = np.zeros((corr_size, 1))
     j = 0
+    sink[M.shape[0]-1, :] = 0
+    sink[:, M.shape[1]-1] = 0
     while j < corr_size:
         max = np.unravel_index(
             np.argmax(sink, axis=None), sink.shape)
-        if (max[0] == (M.shape[0]-1)) or (max[1] == (M.shape[1]-1)):
-            sink[max[0], :] = 0
-            sink[:, max[1]] = 0
-            continue
         corr[j][0], corr[j][1] = max[0], max[1]
         # Save corr weights.
         corr_weights[j] = sink[max[0], max[1]]  # Pn
@@ -145,9 +143,9 @@ if __name__ == '__main__':
 
     # Compute the cross-covariance matrix H
     H = np.zeros((3, 3))
-    for i in range(corr_size):
-        H = H+((corr_values_target[i, :].T) @
-               (corr_values_source[i, :]))*corr_weights[i]
+    for k in range(corr_size):
+        H = H + np.outer(corr_values_target[k, :],
+                         corr_values_source[k, :]) * corr_weights[k]
 
     # Print for debug
     print("corr_values_source: ", corr_values_source.shape, "\ncorr_values_target: ",
@@ -166,8 +164,8 @@ if __name__ == '__main__':
     print("SVD result - v_transpose:\n", v_transpose)
 
     # Calc R and t from SVD result u and v transpose
-    R = (v_transpose.T)@(u.T)
-    t = target_mean-R@source_mean
+    R = (v_transpose.T) @ (u.T)
+    t = source_mean - R@target_mean
 
     # Calc the transform matrix from R and t
     res = np.vstack([R.T, t])
