@@ -144,8 +144,8 @@ if __name__ == '__main__':
     # Compute the cross-covariance matrix H
     H = np.zeros((3, 3))
     for k in range(corr_size):
-        H = H + np.outer(corr_values_target[k, :],
-                         corr_values_source[k, :]) * corr_weights[k]
+        H = H + np.outer(corr_values_source[k, :],
+                         corr_values_target[k, :]) * corr_weights[k]
 
     # Print for debug
     print("corr_values_source: ", corr_values_source.shape, "\ncorr_values_target: ",
@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
     # Calc R and t from SVD result u and v transpose
     R = (v_transpose.T) @ (u.T)
-    t = source_mean - R@target_mean
+    t = target_mean - R@source_mean
 
     # Calc the transform matrix from R and t
     res = np.vstack([R.T, t])

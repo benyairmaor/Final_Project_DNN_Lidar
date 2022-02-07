@@ -31,9 +31,12 @@ def preprocess_point_cloud(pcd, voxel_size):
 def prepare_dataset(voxel_size, source_path, target_path):
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
-    trans_init = np.asarray([[1, 0, 0, 1],
-                             [0, 1, 0, 1],
-                             [0, 0, 1, 1],
+    trans_init = np.asarray([[-0.5754197841861329, 0.817372954385317,
+                              -0.028169583003715, 11.778369303008173],
+                             [-0.7611987839242382, -0.5478349625282469,
+                              -0.34706377682485917, 14.264281414042465],
+                             [-0.2991128270727379, -0.17826471123330384,
+                              0.9374183747982869, 1.6731349336747363],
                              [0., 0., 0., 1.]])
     # trans_init = np.identity(4)
     source.transform(trans_init)
@@ -77,13 +80,15 @@ if __name__ == '__main__':
     keyArrT = np.asarray(key_target.points)
     ArrS = np.asarray(source.points)
     ArrT = np.asarray(target.points)
-    for j in range(len(ArrS)):
-        for i in range(len(keyArrS)):
+    for i in range(len(keyArrS)):
+        print(i)
+        for j in range(len(ArrS)):
             if keyArrS[i][0] == ArrS[j][0] and keyArrS[i][1] == ArrS[j][1] and keyArrS[i][2] == ArrS[j][2]:
                 indexArrS.append(j)
                 break
-    for j in range(len(ArrT)):
-        for i in range(len(keyArrT)):
+    for i in range(len(keyArrT)):
+        print(i)
+        for j in range(len(ArrT)):
             if keyArrT[i][0] == ArrT[j][0] and keyArrT[i][1] == ArrT[j][1] and keyArrT[i][2] == ArrT[j][2]:
                 indexArrT.append(j)
                 break
@@ -108,6 +113,8 @@ if __name__ == '__main__':
 
     # Prepare loss matrix for sinkhorn.
     M = np.asarray(ot.dist(source_arr, target_arr))
+    print("M SHAPE: ", M.shape)
+    print("M : ", M)
 
     # Prepare dust bin for loss matrix M.
     row_to_be_added = np.zeros(((target_arr.shape[0])))
@@ -117,24 +124,22 @@ if __name__ == '__main__':
     M = M.T
     # Print loss matrix shape
     print("Loss matrix m shape : ", M.shape)
-
+    print("M SHAPE: ", M.shape)
+    print("M : ", M)
     # Run sinkhorn with dust bin for find corr.
     sink = np.asarray(ot.sinkhorn(s, t, M, 100, numItermax=1200,
                       stopThr=1e-9, verbose=False, method='sinkhorn'))
-
+    print("sink SHAPE: ", sink)
+    print("M : ", M)
     # Take number of top corr from sinkhorn result, take also the corr weights and print corr result.
-    corr_size = 100
+    corr_size = 500
     corr = np.zeros((corr_size, 2))
     corr_weights = np.zeros((corr_size, 1))
     j = 0
+    sink[M.shape[0]-1, :] = 0
+    sink[:, M.shape[1]-1] = 0
     while j < corr_size:
         max = np.unravel_index(np.argmax(sink, axis=None), sink.shape)
-        if max[0] == M.shape[0]-1:
-            sink[:, max[1]] = 0
-            continue
-        if max[1] == M.shape[1]-1:
-            sink[max[0], :] = 0
-            continue
         corr[j][0], corr[j][1] = max[0], max[1]
         # Save corr weights.
         corr_weights[j] = sink[max[0], max[1]]  # Pn
@@ -176,8 +181,8 @@ if __name__ == '__main__':
     # Compute the cross-covariance matrix H
     H = np.zeros((3, 3))
     for k in range(corr_size):
-        H = H + np.outer(corr_values_target[k, :],
-                         corr_values_source[k, :]) * corr_weights[k]
+        H = H + np.outer(corr_values_source[k, :],
+                         corr_values_target[k, :]) * corr_weights[k]
 
     # Print for debug
     print("corr_values_source: ", corr_values_source.shape, "\ncorr_values_target: ",
@@ -197,7 +202,7 @@ if __name__ == '__main__':
 
     # Calc R and t from SVD result u and v transpose
     R = (v_transpose.T) @ (u.T)
-    t = source_mean - R@target_mean
+    t = target_mean - R@source_mean
 
     # Calc the transform matrix from R and t
     res = np.vstack([R.T, t])
