@@ -6,23 +6,32 @@ import ot
 
 
 def findCorr(source, target, distanceThreshold):
-    list = []
+    sourceIdxs = []
+    targetIdxs = []
     threshold = []
     tragetCopy = copy.deepcopy(target)
     sourceCopy = copy.deepcopy(source)
     for pointS_Idx in range(len(sourceCopy)):
         for pointT_Idx in range(len(tragetCopy)):
-            if (pointS_Idx, pointT_Idx) not in list:
-                dist = np.linalg.norm(
-                    source[pointS_Idx]-tragetCopy[pointT_Idx])
+            dist = np.linalg.norm(sourceCopy[pointS_Idx]-tragetCopy[pointT_Idx])
+            if pointS_Idx not in sourceIdxs and pointT_Idx not in targetIdxs:
                 if dist <= distanceThreshold:
-                    print(dist, " ", source[pointS_Idx],
-                          " ", target[pointT_Idx])
-                    list.append((pointS_Idx, pointT_Idx))
+                    sourceIdxs.append(pointS_Idx)
+                    targetIdxs.append(pointT_Idx)
                     threshold.append(dist)
-                # tragetCopy = np.delete(tragetCopy, pointT_Idx)
-                break
-    return list
+                    print("111111111111111111111", dist, " ", source[pointS_Idx], " ", target[pointT_Idx], '/n')
+            else:
+                if pointS_Idx in sourceIdxs:
+                    index = sourceIdxs.index(pointS_Idx)
+                else:
+                    index = targetIdxs.index(pointT_Idx)
+                if dist < threshold[index]:
+                    sourceIdxs[index] = pointS_Idx
+                    targetIdxs[index] = pointT_Idx
+                    threshold[index] = dist
+                    print("2222222222222222222222", dist, " ", source[pointS_Idx], " ", target[pointT_Idx], '/n')
+
+    return zip(sourceIdxs, targetIdxs)
 
 
 def draw_registration_result(source, target, transformation):
