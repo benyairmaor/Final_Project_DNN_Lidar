@@ -9,8 +9,7 @@ import pandas as pd
 def get_data_global_POC(directory):
     headers = ['id', 'source', 'target', 'overlap', 't1', 't2',
                't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12']
-    read_file = pd.read_csv(
-        'eth/' + directory + '_global_POC.txt', sep=" ", header=0, names=headers)
+    read_file = pd.read_csv('eth/' + directory + '_global_POC.txt', sep=" ", header=0, names=headers)
     read_file.to_csv('eth/' + directory + '_global_POC.csv', sep=',')
     read_file = pd.DataFrame(read_file, columns=headers)
     M = np.zeros((len(read_file), 4, 4))
