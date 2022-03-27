@@ -4,6 +4,7 @@ import numpy as np
 import copy
 import open3d as o3d
 from torch.utils.data import Dataset
+import Functions as F
 
 class ETHDataset(Dataset):
     def __init__(self, path_to_dir, transform=None, target_transform=None):
@@ -21,12 +22,22 @@ class ETHDataset(Dataset):
         source_path = 'eth/' + self.dir_name + '/' + source
         target_path = 'eth/' + self.dir_name + '/' + target
         source_, target_ = self.prepare_item(source_path, target_path, M)
+        source_fpfh, target_fpfh = F.preprocess_point_cloud(source_,target_)
+        print("fpfh finished")
+        key_source = o3d.geometry.keypoint.compute_iss_keypoints(source_, salient_radius=0.03, non_max_radius=0.03, gamma_21=0.001, gamma_32=0.001)
+        key_target = o3d.geometry.keypoint.compute_iss_keypoints(target_, salient_radius=0.03, non_max_radius=0.03, gamma_21=0.001, gamma_32=0.001)
+        print("keypoints finished")
+        s_keyPointArr = np.asarray(key_source.points)
+        t_keyPointArr = np.asarray(key_target.points)
+        scoreMatrix, source_keyPointsIdx, target_keyPointsIdx = F.findCorr(s_keyPointArr, t_keyPointArr, 0.1001)
+        source_RealIdx, target_RealIdx = F.findRealCorrIdx(source_.points, target_.points, s_keyPointArr, t_keyPointArr, source_keyPointsIdx, target_keyPointsIdx)
+        print("indexies of the real world finished")
         if self.transform:
             image = self.transform(image)
         if self.target_transform:
             label = self.target_transform(label)
-        # return source_, target_, overlap, M
-        return np.asarray(source_.points), np.asarray(target_.points), overlap, M
+        return np.asarray(source_.points), np.asarray(target_.points), np.asarray(source_fpfh.points), np.asarray(target_fpfh.points), \
+            source_keyPointsIdx, target_keyPointsIdx, source_RealIdx, target_RealIdx, overlap, M, scoreMatrix
    
     # Method get the data from global file for POC
     def get_data_global(self, directory):
