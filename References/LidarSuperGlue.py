@@ -1,28 +1,64 @@
 import math
+import sys
 import numpy as np
 import open3d as o3d
 import copy
 import ot
 
 
+def NormalizeRow(data):
+    return (data - np.min(data)) / (np.max(data) - np.min(data))
+
+
 def findCorr(source, target, distanceThreshold):
-    list = []
-    threshold = []
-    tragetCopy = copy.deepcopy(target)
-    sourceCopy = copy.deepcopy(source)
-    for pointS_Idx in range(len(sourceCopy)):
-        for pointT_Idx in range(len(tragetCopy)):
-            if (pointS_Idx, pointT_Idx) not in list:
-                dist = np.linalg.norm(
-                    source[pointS_Idx]-tragetCopy[pointT_Idx])
-                if dist <= distanceThreshold:
-                    print(dist, " ", source[pointS_Idx],
-                          " ", target[pointT_Idx])
-                    list.append((pointS_Idx, pointT_Idx))
-                    threshold.append(dist)
-                # tragetCopy = np.delete(tragetCopy, pointT_Idx)
+    # prepare list and copy data.
+    listSource = []
+    listTarget = []
+    tragetCopy = np.asarray(copy.deepcopy(target))
+    sourceCopy = np.asarray(copy.deepcopy(source))
+    # calculate the dist between all points and copy.
+    M = np.asarray(ot.dist(sourceCopy, tragetCopy))
+    M_result = copy.deepcopy(M)
+    # save the maximum number correspondence to find.
+    maxNumOfCorrToFind = min(M.shape[0], M.shape[1])
+    # loop until reach maximum number if correspondence to find or arrive to non match points.
+    while(maxNumOfCorrToFind > 0):
+        # Find index of minimum value from dist matrix
+        minNumIdx = np.unravel_index(np.argmin(M, axis=None), M.shape)
+        # arrive to non match points - because from here distance always bigger from threshold.
+        if distanceThreshold < M[minNumIdx[0], minNumIdx[1]]:
+            break
+        # set the index to max number for found next one.
+        M[minNumIdx[0], minNumIdx[1]] = sys.maxsize
+        # if the point not already corr with other point.
+        if minNumIdx[0] not in listSource and minNumIdx[1] not in listTarget:
+            M_result[minNumIdx[0], :] = NormalizeRow(M_result[minNumIdx[0], :])
+            listSource.append(minNumIdx[0])
+            listTarget.append(minNumIdx[1])
+            maxNumOfCorrToFind -= 1
+
+    M_result[not listSource, :] = -1
+    res = np.ones((M_result.shape))*-1
+    res[listSource, :] = M_result[listSource, :]
+    return res, listSource, listTarget
+
+
+def findRealCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
+    realSidx = []
+    realTidx = []
+    realSarr = np.asarray(copy.deepcopy(realS))
+    realTarr = np.asarray(copy.deepcopy(realT))
+    for key in idxKeyS:
+        for i in range((realSarr.shape[0])):
+            if keyS[key, 0] == realSarr[i, 0] and keyS[key, 1] == realSarr[i, 1] and keyS[key, 2] == realSarr[i, 2]:
+                realSidx.append(i)
                 break
-    return list
+    for key in idxKeyT:
+        for i in range((realTarr.shape[0])):
+            if keyT[key, 0] == realTarr[i, 0] and keyT[key, 1] == realTarr[i, 1] and keyT[key, 2] == realTarr[i, 2]:
+                realTidx.append(i)
+                break
+    return realSidx, realTidx
 
 
 def draw_registration_result(source, target, transformation):
@@ -77,8 +113,10 @@ if __name__ == '__main__':
 
     # Calculate KeyPoints
     print("TEST KEYPOINTS")
-    key_source = o3d.geometry.keypoint.compute_iss_keypoints(source)
-    key_target = o3d.geometry.keypoint.compute_iss_keypoints(target)
+    key_source = o3d.geometry.keypoint.compute_iss_keypoints(
+        source, salient_radius=0.03, non_max_radius=0.03, gamma_21=0.001, gamma_32=0.001)
+    key_target = o3d.geometry.keypoint.compute_iss_keypoints(
+        target, salient_radius=0.03, non_max_radius=0.03, gamma_21=0.001, gamma_32=0.001)
     print("num of key_source", key_source)
     print("num of key_target", key_target)
     draw_registration_result(key_source, key_target, np.identity(4))
@@ -88,27 +126,29 @@ if __name__ == '__main__':
     t_keyPointArr = np.asarray(key_target.points)
     print(len(s_keyPointArr), len(t_keyPointArr),
           s_keyPointArr.shape, t_keyPointArr.shape)
-    corrList = findCorr(s_keyPointArr, t_keyPointArr, 0.1001)
-    print(len(corrList), corrList)
+    scoreMatrix, sCorr, tCorr = findCorr(s_keyPointArr, t_keyPointArr, 0.1001)
+    a, b = findRealCorrIdx(source.points, target.points, s_keyPointArr,
+                           t_keyPointArr, sCorr, tCorr)
+    # print(len(corrList), corrList)
 
-    # Test corr
-    # print(len(s_keyPointArr[corrList[0], :]))
-    pcdS = o3d.geometry.PointCloud()
-    pcdS.points = o3d.utility.Vector3dVector(s_keyPointArr[corrList[0], :])
-    pcdT = o3d.geometry.PointCloud()
-    pcdT.points = o3d.utility.Vector3dVector(t_keyPointArr[corrList[1], :])
-    draw_registration_result(pcdS, pcdT, np.identity(4))
+    # # Test corr
+    # # print(len(s_keyPointArr[corrList[0], :]))
+    # pcdS = o3d.geometry.PointCloud()
+    # pcdS.points = o3d.utility.Vector3dVector(s_keyPointArr[corrList[0], :])
+    # pcdT = o3d.geometry.PointCloud()
+    # pcdT.points = o3d.utility.Vector3dVector(t_keyPointArr[corrList[1], :])
+    # draw_registration_result(pcdS, pcdT, np.identity(4))
 
-    # Make transform (the problem)
-    trans_init = np.asarray([[-0.5754197841861329, 0.817372954385317,
-                              -0.028169583003715, 11.778369303008173],
-                             [-0.7611987839242382, -0.5478349625282469,
-                              -0.34706377682485917, 14.264281414042465],
-                             [-0.2991128270727379, -0.17826471123330384,
-                              0.9374183747982869, 1.6731349336747363],
-                             [0., 0., 0., 1.]])
-    key_source.transform(trans_init)
-    draw_registration_result(key_source, key_target, np.identity(4))
+    # # Make transform (the problem)
+    # trans_init = np.asarray([[-0.5754197841861329, 0.817372954385317,
+    #                           -0.028169583003715, 11.778369303008173],
+    #                          [-0.7611987839242382, -0.5478349625282469,
+    #                           -0.34706377682485917, 14.264281414042465],
+    #                          [-0.2991128270727379, -0.17826471123330384,
+    #                           0.9374183747982869, 1.6731349336747363],
+    #                          [0., 0., 0., 1.]])
+    # key_source.transform(trans_init)
+    # draw_registration_result(key_source, key_target, np.identity(4))
 
     # indexArrS = []
     # indexArrT = []
