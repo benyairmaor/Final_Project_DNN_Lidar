@@ -73,7 +73,8 @@ def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
                 flag = 1
                 break
         if flag == 0:
-            realSarr = np.append(realSarr, keyS[key, :])
+            arr_to_add = np.array([keyS[key, 0], keyS[key, 1], keyS[key, 2]])
+            realSarr = np.vstack([realSarr, arr_to_add])
             realSidx.append(realSarr.shape[0]-1)
 
     for key in idxKeyT:
@@ -84,7 +85,8 @@ def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
                 flag = 1
                 break
         if flag == 0:
-            realTarr = np.append(realTarr, keyT[key, :])
+            arr_to_add = np.array([keyT[key, 0], keyT[key, 1], keyT[key, 2]])
+            realTarr = np.vstack([realTarr, arr_to_add])
             realTidx.append(realTarr.shape[0]-1)
 
     pcdA = o3d.geometry.PointCloud()

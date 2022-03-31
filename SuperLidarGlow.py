@@ -1,4 +1,5 @@
 import torch
+import open3d as o3d
 import ETHDataSet as ETH
 import Functions as F
 import numpy as np
@@ -29,18 +30,41 @@ if __name__ == '__main__':
                              num_workers=0, shuffle=False)
 
     # # Display pcds and deatils for each problem.
-    for batch_idx, (source, target, a, b, source_fpfh, target_fpfh, source_keyPointsIdx, target_keyPointsIdx, source_RealIdx, target_RealIdx, overlap, M, scoreMatrix) in enumerate(test_loader):
+    for batch_idx, (source, target, source_down_key, target_down_key, source_fpfh, target_fpfh, source_key, target_key, source_keyCorrIdx, target_keyCorrIdx, source_RealIdx, target_RealIdx, overlap, M, scoreMatrix) in enumerate(test_loader):
         print("================", batch_idx, "==============")
-        print("source", len(source))
-        print("target", len(target))
-        print("source_fpfh", len(source_fpfh))
-        print("target_fpfh", len(target_fpfh))
-        print("source_keyPointsIdx", len(source_keyPointsIdx))
-        print("target_keyPointsIdx", len(target_keyPointsIdx))
+        print("source", source.shape)
+        print("target", target.shape)
+        print("source_key", source_key.shape)
+        print("target_key", target_key.shape)
+        print("source_down_key", source_down_key.shape)
+        print("target_down_key", target_down_key.shape)
+        print("source_fpfh", source_fpfh.shape)
+        print("target_fpfh", target_fpfh.shape)
+        print("source_keyCorrIdx", len(source_keyCorrIdx))
+        print("target_keyCorrIdx", len(target_keyCorrIdx))
         print("source_RealIdx", len(source_RealIdx))
         print("target_RealIdx", len(target_RealIdx))
         print("overlap", overlap)
         print("M", M)
-        print("a", a)
-        print("b", b)
-        # F.draw_registration_result(source, target, np.identity(4))
+        source_key_arr = source_key.numpy()[0,:,:]
+        target_key_arr = target_key.numpy()[0,:,:]
+        source_key_corr_arr = np.zeros((len(source_keyCorrIdx), 3))
+        target_key_corr_arr = np.zeros((len(target_keyCorrIdx), 3))
+        counter = 0
+        for i in source_keyCorrIdx:
+            source_key_corr_arr[counter, :] = source_key_arr[i, :]
+            counter += 1 
+        counter = 0
+        for i in target_keyCorrIdx:
+            target_key_corr_arr[counter, :] = target_key_arr[i, :]
+            counter += 1 
+        pcdA = o3d.geometry.PointCloud()
+        pcdB = o3d.geometry.PointCloud()
+        pcdA.points = o3d.utility.Vector3dVector(source_key_arr)
+        pcdB.points = o3d.utility.Vector3dVector(target_key_arr)
+        F.draw_registration_result(pcdA, pcdB, np.identity(4))
+        pcdC = o3d.geometry.PointCloud()
+        pcdD = o3d.geometry.PointCloud()
+        pcdC.points = o3d.utility.Vector3dVector(source_key_corr_arr)
+        pcdD.points = o3d.utility.Vector3dVector(target_key_corr_arr)
+        F.draw_registration_result(pcdC, pcdD, np.identity(4))

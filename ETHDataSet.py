@@ -1,3 +1,4 @@
+from sklearn.neighbors import radius_neighbors_graph
 import torch
 import pandas as pd
 import numpy as np
@@ -22,33 +23,34 @@ class ETHDataset(Dataset):
         source_path = 'eth/' + self.dir_name + '/' + source
         target_path = 'eth/' + self.dir_name + '/' + target
         source_, target_ = self.prepare_item(source_path, target_path, M)
-        key_source = o3d.geometry.keypoint.compute_iss_keypoints(
-            source_, salient_radius=0.03, non_max_radius=0.03, gamma_21=0.001, gamma_32=0.001)
-        key_target = o3d.geometry.keypoint.compute_iss_keypoints(
-            target_, salient_radius=0.03, non_max_radius=0.03, gamma_21=0.001, gamma_32=0.001)
-        s_keyPointArr = np.asarray(key_source.points)
-        t_keyPointArr = np.asarray(key_target.points)
-        scoreMatrix, source_keyPointsIdx, target_keyPointsIdx = F.findCorr(
-            s_keyPointArr, t_keyPointArr, 0.1001)
+        F.draw_registration_result(source_, target_, np.identity(4))
+        print("prepare item finished")
+        source_key = o3d.geometry.keypoint.compute_iss_keypoints(source_, salient_radius=0.001)
+        # , salient_radius=0.1, non_max_radius=0.1, gamma_21=0.0001, gamma_32=0.0001)
+        print("source_key finished")
+        target_key = o3d.geometry.keypoint.compute_iss_keypoints(target_)
+        # , salient_radius=0.1, non_max_radius=0.1, gamma_21=0.0001, gamma_32=0.0001)
+        print("target_key finished")
+        source_keyPointArr = np.asarray(source_key.points)
+        target_keyPointArr = np.asarray(target_key.points)
+        scoreMatrix, source_keyPointsIdx, target_keyPointsIdx = F.findCorr(source_keyPointArr, target_keyPointArr, 0.1001)
         print("keypoints finished")
         voxel_size = 0.2
         source_down = source_.voxel_down_sample(voxel_size)
         target_down = target_.voxel_down_sample(voxel_size)
-        print("voxel done")
-        source_VoxelIdx, target_VoxelIdx, source_down_key, target_down_key = F.findVoxelCorrIdx(
-            source_down.points, target_down.points, s_keyPointArr, t_keyPointArr, source_keyPointsIdx, target_keyPointsIdx)
+        print("voxel finished")
+        source_VoxelIdx, target_VoxelIdx, source_down_key, target_down_key = F.findVoxelCorrIdx(source_down.points, target_down.points, source_keyPointArr, target_keyPointArr, source_keyPointsIdx, target_keyPointsIdx)
         print("indexies of the voxel world finished")
-        source_fpfh, target_fpfh = F.preprocess_point_cloud(
-            source_down_key, target_down_key, voxel_size)
+        source_fpfh, target_fpfh = F.preprocess_point_cloud(source_down_key, target_down_key, voxel_size)
         print("fpfh finished")
 
         if self.transform:
             image = self.transform(image)
         if self.target_transform:
             label = self.target_transform(label)
-        source.transform(source_)
-        return np.asarray(source_.points), np.asarray(target_.points), np.asarray(source_down_key), np.asarray(target_down_key), np.asarray(source_fpfh.data), np.asarray(target_fpfh.data), \
-            source_keyPointsIdx, target_keyPointsIdx, source_VoxelIdx, target_VoxelIdx, overlap, M, scoreMatrix
+        source_.transform(M)
+        return np.asarray(source_.points), np.asarray(target_.points), np.asarray(source_down_key.points), np.asarray(target_down_key.points), np.asarray(source_fpfh.data), np.asarray(target_fpfh.data), \
+            np.array(source_key.points), np.array(target_key.points), source_keyPointsIdx, target_keyPointsIdx, source_VoxelIdx, target_VoxelIdx, overlap, M, scoreMatrix
 
     # Method get the data from global file for POC
     def get_data_global(self, directory):
