@@ -60,21 +60,61 @@ def findRealCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
     return realSidx, realTidx
 
 
+def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
+    realSidx = []
+    realTidx = []
+    realSarr = np.asarray(copy.deepcopy(realS))
+    realTarr = np.asarray(copy.deepcopy(realT))
+    for key in idxKeyS:
+        flag = 0
+        for i in range((realSarr.shape[0])):
+            if keyS[key, 0] == realSarr[i, 0] and keyS[key, 1] == realSarr[i, 1] and keyS[key, 2] == realSarr[i, 2]:
+                realSidx.append(i)
+                flag = 1
+                break
+        if flag == 0:
+            realSarr = np.append(realSarr, keyS[key, :])
+            realSidx.append(realSarr.shape[0]-1)
+
+    for key in idxKeyT:
+        flag = 0
+        for i in range((realTarr.shape[0])):
+            if keyT[key, 0] == realTarr[i, 0] and keyT[key, 1] == realTarr[i, 1] and keyT[key, 2] == realTarr[i, 2]:
+                realTidx.append(i)
+                flag = 1
+                break
+        if flag == 0:
+            realTarr = np.append(realTarr, keyT[key, :])
+            realTidx.append(realTarr.shape[0]-1)
+
+    pcdA = o3d.geometry.PointCloud()
+    pcdB = o3d.geometry.PointCloud()
+    pcdA.points = o3d.utility.Vector3dVector(realSarr)
+    pcdB.points = o3d.utility.Vector3dVector(realTarr)
+    return realSidx, realTidx, pcdA, pcdB
+
+
 def draw_registration_result(source, target, transformation):
+
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
     source_temp.paint_uniform_color([1, 0.706, 0])
     target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
-    o3d.visualization.draw_geometries([source_temp, target_temp], width=1280, height=720)
+    o3d.visualization.draw_geometries(
+        [source_temp, target_temp], width=1280, height=720)
 
 
 # For pre prossecing the point cloud - make voxel and compute FPFH.
-def preprocess_point_cloud(source, target):
-    radius_normal = 1
-    radius_feature = 2
-    source.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
-    target.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
-    pcd_fpfh_source = o3d.pipelines.registration.compute_fpfh_feature(source, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=600))
-    pcd_fpfh_target = o3d.pipelines.registration.compute_fpfh_feature(source, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=600))
+def preprocess_point_cloud(source, target, voxel_size):
+    radius_normal = 5*voxel_size
+    radius_feature = 10*voxel_size
+    source.estimate_normals(
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
+    target.estimate_normals(
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
+    pcd_fpfh_source = o3d.pipelines.registration.compute_fpfh_feature(
+        source, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=600))
+    pcd_fpfh_target = o3d.pipelines.registration.compute_fpfh_feature(
+        target, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=600))
     return pcd_fpfh_source, pcd_fpfh_target
