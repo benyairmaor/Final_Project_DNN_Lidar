@@ -29,14 +29,14 @@ class ETHDataset(Dataset):
         print("keypoints finished")
         s_keyPointArr = np.asarray(key_source.points)
         t_keyPointArr = np.asarray(key_target.points)
-        scoreMatrix, source_keyPointsIdx, target_keyPointsIdx = F.findCorr(s_keyPointArr, t_keyPointArr, 0.1001)
+        scoreMatrix, source_keyPointsIdx, target_keyPointsIdx = F.findCorr(s_keyPointArr, t_keyPointArr)
         source_RealIdx, target_RealIdx = F.findRealCorrIdx(source_.points, target_.points, s_keyPointArr, t_keyPointArr, source_keyPointsIdx, target_keyPointsIdx)
         print("indexies of the real world finished")
         if self.transform:
             image = self.transform(image)
         if self.target_transform:
             label = self.target_transform(label)
-        return np.asarray(source_.points), np.asarray(target_.points), np.asarray(source_fpfh.points), np.asarray(target_fpfh.points), \
+        return np.asarray(source_.points), np.asarray(target_.points), np.asarray(source_fpfh.data), np.asarray(target_fpfh.data), \
             source_keyPointsIdx, target_keyPointsIdx, source_RealIdx, target_RealIdx, overlap, M, scoreMatrix
    
     # Method get the data from global file for POC

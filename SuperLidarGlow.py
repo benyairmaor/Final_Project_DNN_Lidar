@@ -28,7 +28,7 @@ if __name__ == '__main__':
     # # Display pcds and deatils for each problem.
     for batch_idx, (source, target, source_fpfh, target_fpfh, source_keyPointsIdx, target_keyPointsIdx, source_RealIdx, target_RealIdx, overlap, M, scoreMatrix) in enumerate(test_loader):
         print("================", batch_idx, "==============")
-        print("source", len(source))
+        print("source", (source))
         print("target", len(target))
         print("source_fpfh", len(source_fpfh))
         print("target_fpfh", len(target_fpfh))

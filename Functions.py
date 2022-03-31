@@ -9,7 +9,8 @@ def NormalizeRow(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 
-def findCorr(source, target, distanceThreshold):
+def findCorr(source, target):
+    distanceThreshold = 0.1001
     # prepare list and copy data.
     listSource = []
     listTarget = []
