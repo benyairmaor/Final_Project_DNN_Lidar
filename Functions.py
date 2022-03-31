@@ -65,6 +65,7 @@ def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
     realTidx = []
     realSarr = np.asarray(copy.deepcopy(realS))
     realTarr = np.asarray(copy.deepcopy(realT))
+    size = realSarr.shape[0]
     for key in idxKeyS:
         flag = 0
         for i in range((realSarr.shape[0])):
@@ -76,7 +77,9 @@ def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
             arr_to_add = np.array([keyS[key, 0], keyS[key, 1], keyS[key, 2]])
             realSarr = np.vstack([realSarr, arr_to_add])
             realSidx.append(realSarr.shape[0]-1)
+    # print("added to source voxel", realSarr.shape[0] - size)
 
+    size = realTarr.shape[0]
     for key in idxKeyT:
         flag = 0
         for i in range((realTarr.shape[0])):
@@ -88,6 +91,7 @@ def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
             arr_to_add = np.array([keyT[key, 0], keyT[key, 1], keyT[key, 2]])
             realTarr = np.vstack([realTarr, arr_to_add])
             realTidx.append(realTarr.shape[0]-1)
+    # print("added to target voxel", realTarr.shape[0] - size)
 
     pcdA = o3d.geometry.PointCloud()
     pcdB = o3d.geometry.PointCloud()

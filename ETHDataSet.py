@@ -19,28 +19,34 @@ class ETHDataset(Dataset):
         return len(self.pcd_list)
 
     def __getitem__(self, idx):
+        
         source, target, overlap, M = self.get_data(idx)
         source_path = 'eth/' + self.dir_name + '/' + source
         target_path = 'eth/' + self.dir_name + '/' + target
         source_, target_ = self.prepare_item(source_path, target_path, M)
         F.draw_registration_result(source_, target_, np.identity(4))
         print("prepare item finished")
-        source_key = o3d.geometry.keypoint.compute_iss_keypoints(source_, salient_radius=0.001)
+        
+        source_key = o3d.geometry.keypoint.compute_iss_keypoints(source_, gamma_21=0.27, gamma_32=0.12)
+        print("source_key finished", source_key)
+        
+        target_key = o3d.geometry.keypoint.compute_iss_keypoints(target_, gamma_21=0.27, gamma_32=0.12)
         # , salient_radius=0.1, non_max_radius=0.1, gamma_21=0.0001, gamma_32=0.0001)
-        print("source_key finished")
-        target_key = o3d.geometry.keypoint.compute_iss_keypoints(target_)
-        # , salient_radius=0.1, non_max_radius=0.1, gamma_21=0.0001, gamma_32=0.0001)
-        print("target_key finished")
+        print("target_key finished", target_key)
+        
         source_keyPointArr = np.asarray(source_key.points)
         target_keyPointArr = np.asarray(target_key.points)
         scoreMatrix, source_keyPointsIdx, target_keyPointsIdx = F.findCorr(source_keyPointArr, target_keyPointArr, 0.1001)
         print("keypoints finished")
+        
         voxel_size = 0.2
         source_down = source_.voxel_down_sample(voxel_size)
         target_down = target_.voxel_down_sample(voxel_size)
         print("voxel finished")
+        
         source_VoxelIdx, target_VoxelIdx, source_down_key, target_down_key = F.findVoxelCorrIdx(source_down.points, target_down.points, source_keyPointArr, target_keyPointArr, source_keyPointsIdx, target_keyPointsIdx)
         print("indexies of the voxel world finished")
+        
         source_fpfh, target_fpfh = F.preprocess_point_cloud(source_down_key, target_down_key, voxel_size)
         print("fpfh finished")
 
@@ -48,6 +54,7 @@ class ETHDataset(Dataset):
             image = self.transform(image)
         if self.target_transform:
             label = self.target_transform(label)
+        
         source_.transform(M)
         return np.asarray(source_.points), np.asarray(target_.points), np.asarray(source_down_key.points), np.asarray(target_down_key.points), np.asarray(source_fpfh.data), np.asarray(target_fpfh.data), \
             np.array(source_key.points), np.array(target_key.points), source_keyPointsIdx, target_keyPointsIdx, source_VoxelIdx, target_VoxelIdx, overlap, M, scoreMatrix
