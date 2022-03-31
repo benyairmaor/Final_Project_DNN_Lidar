@@ -66,6 +66,7 @@ if __name__ == '__main__':
         # Source and target keypoint correspondence
         source_keyPointArr = np.asarray(source_key.points)
         target_keyPointArr = np.asarray(target_key.points)
+        # Find the correspondence between the PCDs keypoints
         scoreMatrix, source_keyCorrIdx, target_keyCorrIdx = F.findCorr(source_keyPointArr, target_keyPointArr, 0.1001)
         
         if VERBOSE:

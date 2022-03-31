@@ -4,11 +4,13 @@ import open3d as o3d
 import copy
 import ot
 
-
+############################### Normalize row of a matrix from 0-1 ###############################
 def NormalizeRow(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 
+
+############################### Find the correspondence from source and target ###############################
 def findCorr(source, target, distanceThreshold):
     
     # prepare list and copy data.
@@ -46,6 +48,9 @@ def findCorr(source, target, distanceThreshold):
     
     return res, listSource, listTarget
 
+
+
+############################### Find the indecies of keypoint in the whole PCD ###############################
 def findRealCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
     
     realSidx = []
@@ -53,12 +58,14 @@ def findRealCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
     realSarr = np.asarray(copy.deepcopy(realS))
     realTarr = np.asarray(copy.deepcopy(realT))
     
+    # For each keypoint look for the whole PCD - for source
     for key in idxKeyS:
         for i in range((realSarr.shape[0])):
             if keyS[key, 0] == realSarr[i, 0] and keyS[key, 1] == realSarr[i, 1] and keyS[key, 2] == realSarr[i, 2]:
                 realSidx.append(i)
                 break
     
+    # For each keypoint look for the whole PCD - for target
     for key in idxKeyT:
         for i in range((realTarr.shape[0])):
             if keyT[key, 0] == realTarr[i, 0] and keyT[key, 1] == realTarr[i, 1] and keyT[key, 2] == realTarr[i, 2]:
@@ -68,6 +75,8 @@ def findRealCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
     return realSidx, realTidx
 
 
+
+############################### Find the indecies of keypoint in voxel and if not found add it ###############################
 def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
     
     realSidx = []
@@ -75,6 +84,7 @@ def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
     realSarr = np.asarray(copy.deepcopy(realS))
     realTarr = np.asarray(copy.deepcopy(realT))
     
+    # For each keypoint look for in the voxel - for source
     for key in idxKeyS:
         flag = 0
         for i in range((realSarr.shape[0])):
@@ -87,6 +97,7 @@ def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
             realSarr = np.vstack([realSarr, arr_to_add])
             realSidx.append(realSarr.shape[0]-1)
     
+    # For each keypoint look for in the voxel - for target
     for key in idxKeyT:
         flag = 0
         for i in range((realTarr.shape[0])):
@@ -107,6 +118,8 @@ def findVoxelCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
     return realSidx, realTidx, pcdA, pcdB
 
 
+
+############################### For visualization ###############################
 def draw_registration_result(source, target, transformation):
 
     source_temp = copy.deepcopy(source)
@@ -117,15 +130,18 @@ def draw_registration_result(source, target, transformation):
     o3d.visualization.draw_geometries([source_temp, target_temp], width=1280, height=720)
 
 
-# For pre prossecing the point cloud - make voxel and compute FPFH.
+
+############################### For voxel and compute FPFH ###############################
 def preprocess_point_cloud(source, target, voxel_size):
     
     radius_normal = 5*voxel_size
     radius_feature = 10*voxel_size
     
+    # Calculate normals
     source.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
     target.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
     
+    # Calculate FPFHs
     pcd_fpfh_source = o3d.pipelines.registration.compute_fpfh_feature(source, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=600))
     pcd_fpfh_target = o3d.pipelines.registration.compute_fpfh_feature(target, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=600))
     

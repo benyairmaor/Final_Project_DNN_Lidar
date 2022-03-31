@@ -59,6 +59,7 @@ if __name__ == '__main__':
         source_down_arr = np.asarray(source_down.points)
         target_down_arr = np.asarray(target_down.points)
 
+        # Find the correspondence between the PCDs voxel
         scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx = F.findCorr(source_down_arr, target_down_arr, 0.1001)
         
         if VERBOSE:
