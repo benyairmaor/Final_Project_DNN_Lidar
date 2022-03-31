@@ -50,7 +50,9 @@ if __name__ == '__main__':
             print("\n================", batch_idx, "================\n")
         F.draw_registration_result(source_, target_, np.identity(4))
 
-        # Pre processing for for SuperGlue
+    ########################################### Preprocessing (Front End) #########################################
+
+        # Downsampaling the PCD by voxel
         source_down = source_.voxel_down_sample(voxel_size)
         target_down = target_.voxel_down_sample(voxel_size)
         
@@ -66,6 +68,7 @@ if __name__ == '__main__':
             print("source_voxelCorrIdx", len(source_voxelCorrIdx))
             print("target_voxelCorrIdx", len(target_voxelCorrIdx))
         
+        # Calculate FPFH
         source_fpfh, target_fpfh = F.preprocess_point_cloud(source_down, target_down, voxel_size)
         
         if VERBOSE:
@@ -73,16 +76,19 @@ if __name__ == '__main__':
             print("source_fpfh", source_fpfh)
             print("target_fpfh", target_fpfh)
 
+        # Tramsform source
         source_.transform(M)
         
+        # Visualize voxel
         source_key_corr_arr = np.zeros((len(source_down_arr), 3))
         target_key_corr_arr = np.zeros((len(target_down_arr), 3))
+        
         counter = 0
         for i in source_voxelCorrIdx:
             source_key_corr_arr[counter, :] = source_down_arr[i, :]
             counter += 1 
-        counter = 0
         
+        counter = 0
         for i in target_voxelCorrIdx:
             target_key_corr_arr[counter, :] = target_down_arr[i, :]
             counter += 1 
@@ -93,6 +99,7 @@ if __name__ == '__main__':
         pcdB.points = o3d.utility.Vector3dVector(target_down_arr)
         F.draw_registration_result(pcdA, pcdB, np.identity(4))
         
+        # Visualize voxel correspondence
         pcdC = o3d.geometry.PointCloud()
         pcdD = o3d.geometry.PointCloud()
         pcdC.points = o3d.utility.Vector3dVector(source_key_corr_arr)

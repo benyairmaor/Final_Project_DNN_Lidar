@@ -6,6 +6,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 
 VERBOSE = True
+voxel_size = 1
 
 if __name__ == '__main__':
     ################################################### Data Loader #################################################
@@ -49,82 +50,49 @@ if __name__ == '__main__':
             print("\n================", batch_idx, "================\n")
         F.draw_registration_result(source_, target_, np.identity(4))
 
-    ########################################### Preprocessing (Front End) #########################################
-
-        # Source keypoint by iss method
-        source_key = o3d.geometry.keypoint.compute_iss_keypoints(source_, gamma_21=0.27, gamma_32=0.12)
-        
-        if VERBOSE:
-            print("source_key finished", source_key)
-
-        # Target keypoint by iss method
-        target_key = o3d.geometry.keypoint.compute_iss_keypoints(target_, gamma_21=0.27, gamma_32=0.12)
-        
-        if VERBOSE:
-            print("target_key finished", target_key)
-        
-        # Source and target keypoint correspondence
-        source_keyPointArr = np.asarray(source_key.points)
-        target_keyPointArr = np.asarray(target_key.points)
-        scoreMatrix, source_keyCorrIdx, target_keyCorrIdx = F.findCorr(source_keyPointArr, target_keyPointArr, 0.1001)
-        
-        if VERBOSE:
-            print("\nkeypoints finished")
-            print("source_keyCorrIdx", len(source_keyCorrIdx))
-            print("target_keyCorrIdx", len(target_keyCorrIdx))
-        
-        # Downsampaling the PCD by voxel
-        voxel_size = 0.2
+        # Pre processing for for SuperGlue
         source_down = source_.voxel_down_sample(voxel_size)
         target_down = target_.voxel_down_sample(voxel_size)
         
+        source_down_arr = np.asarray(source_down.points)
+        target_down_arr = np.asarray(target_down.points)
+
+        scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx = F.findCorr(source_down_arr, target_down_arr, 0.1001)
+        
         if VERBOSE:
             print("\nvoxel finished")
+            print("source_down", source_down)
+            print("target_down", target_down)
+            print("source_voxelCorrIdx", len(source_voxelCorrIdx))
+            print("target_voxelCorrIdx", len(target_voxelCorrIdx))
         
-        # Find keypoints correspondence indecies in voxel
-        source_VoxelIdx, target_VoxelIdx, source_down_key, target_down_key = F.findVoxelCorrIdx(source_down.points, target_down.points, source_keyPointArr, target_keyPointArr, source_keyCorrIdx, target_keyCorrIdx)
-        
-        if VERBOSE:
-            print("indexies of the voxel world finished")
-            print("source_down_key", source_down_key)
-            print("target_down_key", target_down_key)
-            print("source_VoxelIdx", len(source_VoxelIdx))
-            print("target_VoxelIdx", len(target_VoxelIdx))
-        
-        # Calculate FPFH
-        source_fpfh, target_fpfh = F.preprocess_point_cloud(source_down_key, target_down_key, voxel_size)
+        source_fpfh, target_fpfh = F.preprocess_point_cloud(source_down, target_down, voxel_size)
         
         if VERBOSE:
             print("\nfpfh finished")
             print("source_fpfh", source_fpfh)
             print("target_fpfh", target_fpfh)
 
-        # Tramsform source
         source_.transform(M)
         
-        # Visualize Keypoints
-        source_key_arr = np.asarray(source_key.points)
-        target_key_arr = np.asarray(target_key.points)
-        source_key_corr_arr = np.zeros((len(source_keyCorrIdx), 3))
-        target_key_corr_arr = np.zeros((len(target_keyCorrIdx), 3))
-        
+        source_key_corr_arr = np.zeros((len(source_down_arr), 3))
+        target_key_corr_arr = np.zeros((len(target_down_arr), 3))
         counter = 0
-        for i in source_keyCorrIdx:
-            source_key_corr_arr[counter, :] = source_key_arr[i, :]
+        for i in source_voxelCorrIdx:
+            source_key_corr_arr[counter, :] = source_down_arr[i, :]
             counter += 1 
-        
         counter = 0
-        for i in target_keyCorrIdx:
-            target_key_corr_arr[counter, :] = target_key_arr[i, :]
+        
+        for i in target_voxelCorrIdx:
+            target_key_corr_arr[counter, :] = target_down_arr[i, :]
             counter += 1 
         
         pcdA = o3d.geometry.PointCloud()
         pcdB = o3d.geometry.PointCloud()
-        pcdA.points = o3d.utility.Vector3dVector(source_key_arr)
-        pcdB.points = o3d.utility.Vector3dVector(target_key_arr)
+        pcdA.points = o3d.utility.Vector3dVector(source_down_arr)
+        pcdB.points = o3d.utility.Vector3dVector(target_down_arr)
         F.draw_registration_result(pcdA, pcdB, np.identity(4))
         
-        # Visualize Keypoints correspondence
         pcdC = o3d.geometry.PointCloud()
         pcdD = o3d.geometry.PointCloud()
         pcdC.points = o3d.utility.Vector3dVector(source_key_corr_arr)
