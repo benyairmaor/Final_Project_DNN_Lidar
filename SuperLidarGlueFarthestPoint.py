@@ -1,7 +1,7 @@
 import torch
 import open3d as o3d
 import ETHDataSet as ETH
-import Functions as F
+import Utilities as F
 import numpy as np
 from torch.utils.data import DataLoader
 

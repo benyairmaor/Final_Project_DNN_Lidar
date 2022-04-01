@@ -1,11 +1,13 @@
 import torch
 import open3d as o3d
 import ETHDataSet as ETH
-import Functions as F
+import Utilities as F
 import numpy as np
 from torch.utils.data import DataLoader
+# import GatSinkhorn as GATS
 
 VERBOSE = True
+VISUALIZATION = True
 voxel_size = 1
 
 if __name__ == '__main__':
@@ -24,6 +26,12 @@ if __name__ == '__main__':
 
     #  TestLoader, 20% of the data
     test_loader = DataLoader(test_set, batch_size=1, num_workers=0, shuffle=False)
+
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = "cpu"
+
+    # model = GATS().to(device)
 
     # # Display pcds and deatils for each problem.
     for batch_idx, (source, target, overlap, M) in enumerate(test_loader):
@@ -48,7 +56,8 @@ if __name__ == '__main__':
 
         if VERBOSE:
             print("\n================", batch_idx, "================\n")
-        F.draw_registration_result(source_, target_, np.identity(4))
+        if VISUALIZATION:
+            F.draw_registration_result(source_, target_, np.identity(4))
 
     ########################################### Preprocessing (Front End) #########################################
 
@@ -80,29 +89,59 @@ if __name__ == '__main__':
         # Tramsform source
         source_.transform(M)
         
-        # Visualize voxel
-        source_key_corr_arr = np.zeros((len(source_down_arr), 3))
-        target_key_corr_arr = np.zeros((len(target_down_arr), 3))
-        
-        counter = 0
-        for i in source_voxelCorrIdx:
-            source_key_corr_arr[counter, :] = source_down_arr[i, :]
-            counter += 1 
-        
-        counter = 0
-        for i in target_voxelCorrIdx:
-            target_key_corr_arr[counter, :] = target_down_arr[i, :]
-            counter += 1 
-        
-        pcdA = o3d.geometry.PointCloud()
-        pcdB = o3d.geometry.PointCloud()
-        pcdA.points = o3d.utility.Vector3dVector(source_down_arr)
-        pcdB.points = o3d.utility.Vector3dVector(target_down_arr)
-        F.draw_registration_result(pcdA, pcdB, np.identity(4))
-        
-        # Visualize voxel correspondence
-        pcdC = o3d.geometry.PointCloud()
-        pcdD = o3d.geometry.PointCloud()
-        pcdC.points = o3d.utility.Vector3dVector(source_key_corr_arr)
-        pcdD.points = o3d.utility.Vector3dVector(target_key_corr_arr)
-        F.draw_registration_result(pcdC, pcdD, np.identity(4))
+        if VISUALIZATION:
+            # Visualize voxel
+            source_key_corr_arr = np.zeros((len(source_down_arr), 3))
+            target_key_corr_arr = np.zeros((len(target_down_arr), 3))
+            
+            counter = 0
+            for i in source_voxelCorrIdx:
+                source_key_corr_arr[counter, :] = source_down_arr[i, :]
+                counter += 1 
+            
+            counter = 0
+            for i in target_voxelCorrIdx:
+                target_key_corr_arr[counter, :] = target_down_arr[i, :]
+                counter += 1 
+            
+            pcdA = o3d.geometry.PointCloud()
+            pcdB = o3d.geometry.PointCloud()
+            pcdA.points = o3d.utility.Vector3dVector(source_down_arr)
+            pcdB.points = o3d.utility.Vector3dVector(target_down_arr)
+            F.draw_registration_result(pcdA, pcdB, np.identity(4))
+            
+            # Visualize voxel correspondence
+            pcdC = o3d.geometry.PointCloud()
+            pcdD = o3d.geometry.PointCloud()
+            pcdC.points = o3d.utility.Vector3dVector(source_key_corr_arr)
+            pcdD.points = o3d.utility.Vector3dVector(target_key_corr_arr)
+            F.draw_registration_result(pcdC, pcdD, np.identity(4))
+
+            source_fpfh_arr = np.asarray(source_fpfh.data).T
+            target_fpfh_arr = np.asarray(target_fpfh.data).T
+            print(source_fpfh_arr.shape, target_fpfh_arr.shape)
+            fpfhSourceTargetConcatenate = np.concatenate((source_fpfh_arr, target_fpfh_arr), axis=0)
+
+            fpfhSourceTargetConcatenate = torch.tensor(fpfhSourceTargetConcatenate)
+            fpfhSourceTargetConcatenate = fpfhSourceTargetConcatenate.to(device)
+
+            sourceSize = source_fpfh_arr.shape[0]
+            targetSize = target_fpfh_arr.shape[0]
+
+            selfMatrix = np.zeros((sourceSize + targetSize, sourceSize + targetSize))
+            selfMatrix[0:sourceSize, 0:sourceSize] = 1
+            selfMatrix[sourceSize:len(selfMatrix), sourceSize:len(selfMatrix)] = 1
+            selfMatrix = torch.tensor(selfMatrix)
+
+            crossMatrix = np.ones((sourceSize + targetSize, sourceSize + targetSize))
+            crossMatrix[0:sourceSize, 0:sourceSize] = 0
+            crossMatrix[sourceSize:len(crossMatrix), sourceSize:len(crossMatrix)] = 0
+            crossMatrix = torch.tensor(crossMatrix)
+
+            # TODO: Don't know if needed
+            # for i in range(len(crossMatrix)):
+            #     crossMatrix[i][i] = 1
+
+            selfInput = torch.mm(selfMatrix, fpfhSourceTargetConcatenate)
+            crossInput = torch.mm(crossMatrix, fpfhSourceTargetConcatenate)
+            
