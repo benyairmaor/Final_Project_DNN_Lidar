@@ -90,7 +90,6 @@ if __name__ == '__main__':
         source_.transform(M)
         
         if VISUALIZATION:
-            # Visualize voxel
             source_key_corr_arr = np.zeros((len(source_down_arr), 3))
             target_key_corr_arr = np.zeros((len(target_down_arr), 3))
             
@@ -119,9 +118,11 @@ if __name__ == '__main__':
 
             source_fpfh_arr = np.asarray(source_fpfh.data).T
             target_fpfh_arr = np.asarray(target_fpfh.data).T
-            print(source_fpfh_arr.shape, target_fpfh_arr.shape)
-            fpfhSourceTargetConcatenate = np.concatenate((source_fpfh_arr, target_fpfh_arr), axis=0)
+            
+            if VERBOSE:
+                print(source_fpfh_arr.shape, target_fpfh_arr.shape)
 
+            fpfhSourceTargetConcatenate = np.concatenate((source_fpfh_arr, target_fpfh_arr), axis=0)
             fpfhSourceTargetConcatenate = torch.tensor(fpfhSourceTargetConcatenate)
             fpfhSourceTargetConcatenate = fpfhSourceTargetConcatenate.to(device)
 
