@@ -15,13 +15,11 @@ if __name__ == '__main__':
     sum = 0
     sum_datasets = 0
     for directory in directories:
-        sources, targets, overlaps, translation_M = UR.get_data_global(
-            directory)
+        sources, targets, overlaps, translation_M = UR.get_data_global(directory)
         results.append([])
         sum = 0
         for i in range(len(sources)):
-            print("directory:" + directory + ", iter:" +
-                  str(i + 1) + "/" + str(len(sources)))
+            print("directory:" + directory + ", iter:" + str(i + 1) + "/" + str(len(sources)))
             # Save path for source & target pcd.
             source_path = 'Datasets/eth/' + directory + '/' + sources[i]
             target_path = 'Datasets/eth/' + directory + '/' + targets[i]
@@ -31,7 +29,7 @@ if __name__ == '__main__':
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_fpfh, target_fpfh = UR.prepare_dataset_sinkhorn_ransac(voxel_size, source_path, target_path, translation_M[i])
-
+            aaa = np.asarray(source.points)
             # Prepare source weight for sinkhorn with dust bin.
             source_arr = np.asarray(source_fpfh.data).T
             s = (np.ones((source_arr.shape[0]+1))*(2/3))/source_arr.shape[0]
@@ -62,14 +60,16 @@ if __name__ == '__main__':
                 corr[j][0], corr[j][1] = max[0], max[1]
                 sink[max[0], :] = 0
                 sink[:, max[1]] = 0
-
+            
+            aaa = np.asarray(source.points)
             # For sinkhorn correspondence result - run first glabal(RANSAC) and then local(ICP) regestration
-            result_ransac = UR.execute_global_registration_with_corr(
-                source_down, target_down, corr)
+            result_ransac = UR.execute_global_registration_with_corr(source_down, target_down, corr)
             # Execute local registration by ICP , Originals pcd and the global registration transformation result,
             # print the result and the correspondence point set .
+            aaa = np.asarray(source.points)
             result_icp = UR.refine_registration_sinkhorn_ransac(source, target, result_ransac)
             # If the result is not bigger then the overlap else if result bigger than the overlap BUT STILL MISMATCH
+            aaa = np.asarray(source.points)
 
             if(result_icp.fitness > overlaps[i]):
                 fitness = 2 - (result_icp.fitness / overlaps[i])
@@ -83,13 +83,11 @@ if __name__ == '__main__':
             UR.draw_registration_result(source, target, result_icp.transformation, "ICP result")
 
         avg_result_datasets.append([directory, sum / len(results[iter_dataset])])
-        print("\navg result of dataset", directory, "is",avg_result_datasets[iter_dataset][1], "\n")
+        print("\navg result of dataset", directory, "is",avg_result_datasets[iter_dataset][1], "\n\n")
         sum_datasets += avg_result_datasets[iter_dataset][1]
         iter_dataset += 1
 
     total_avg = sum_datasets / len(avg_result_datasets)
-    print()
     for i in range(len(avg_result_datasets)):
         print(avg_result_datasets[i][0],'\'s score: ', avg_result_datasets[i][1])
-    print()
-    print("total avarage = ", total_avg)
+    print("\ntotal avarage = ", total_avg)
