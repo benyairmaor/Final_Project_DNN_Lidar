@@ -52,8 +52,8 @@ def prepare_dataset(voxel_size, source_path, target_path):
 
 if __name__ == '__main__':
     # Save path for source & target pcd.
-    source_path = "eth//hauptgebaude//PointCloud26.pcd"
-    target_path = "eth//hauptgebaude//PointCloud27.pcd"
+    source_path = "Datasets/eth//hauptgebaude//PointCloud26.pcd"
+    target_path = "Datasets/eth//hauptgebaude//PointCloud27.pcd"
 
     # Init voxel for less num of point clouds.
     voxel_size = 0.2  # means voxel_size-cm for this dataset.
