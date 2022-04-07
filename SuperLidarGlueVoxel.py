@@ -4,7 +4,8 @@ import ETHDataSet as ETH
 import Utilities as F
 import numpy as np
 from torch.utils.data import DataLoader
-# import GatSinkhorn as GATS
+from torch_geometric.data import Data
+import GatSinkhorn as GATS
 
 VERBOSE = True
 VISUALIZATION = True
@@ -13,6 +14,7 @@ voxel_size = 1
 if __name__ == '__main__':
     ################################################### Data Loader #################################################
 
+    num_epochs = 5
     # Load the ETH dataset
     ETH_dataset = ETH.ETHDataset("apartment")
 
@@ -29,120 +31,28 @@ if __name__ == '__main__':
 
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = "cpu"
+    # device = 'cpu'
 
-    # model = GATS().to(device)
+    model = GATS.GAT(33, 33, hid=33, in_head=8, out_head=1).to(device)
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=5e-4)
 
-    # # Display pcds and deatils for each problem.
-    for batch_idx, (source, target, overlap, M) in enumerate(test_loader):
-        
-        # Simplify the data
-        sourceArr = source.numpy()[0,:,:]
-        targetArr = target.numpy()[0,:,:]
-        source_ = o3d.geometry.PointCloud()
-        target_ = o3d.geometry.PointCloud()
-        source_.points = o3d.utility.Vector3dVector(sourceArr)
-        target_.points = o3d.utility.Vector3dVector(targetArr)
-
-        M = M.numpy()[0,:,:]
-        overlap = overlap.numpy()[0]
-        
-        if VERBOSE:
-            print("prepare item finished\n\n ================ The Problem Is: ================\n")
-            print("source", source_)
-            print("target", target_)
-            print("overlap", overlap)
-            print("M", M)
-
-        if VERBOSE:
-            print("\n================", batch_idx, "================\n")
-        if VISUALIZATION:
-            F.draw_registration_result(source_, target_, np.identity(4))
-
-    ########################################### Preprocessing (Front End) #########################################
-
-        # Downsampaling the PCD by voxel
-        source_down = source_.voxel_down_sample(voxel_size)
-        target_down = target_.voxel_down_sample(voxel_size)
-        
-        source_down_arr = np.asarray(source_down.points)
-        target_down_arr = np.asarray(target_down.points)
-
-        # Find the correspondence between the PCDs voxel
-        scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx = F.findCorr(source_down_arr, target_down_arr, 0.1001)
-        
-        if VERBOSE:
-            print("\nvoxel finished")
-            print("source_down", source_down)
-            print("target_down", target_down)
-            print("source_voxelCorrIdx", len(source_voxelCorrIdx))
-            print("target_voxelCorrIdx", len(target_voxelCorrIdx))
-        
-        # Calculate FPFH
-        source_fpfh, target_fpfh = F.preprocess_point_cloud(source_down, target_down, voxel_size)
-        
-        if VERBOSE:
-            print("\nfpfh finished")
-            print("source_fpfh", source_fpfh)
-            print("target_fpfh", target_fpfh)
-
-        # Tramsform source
-        source_.transform(M)
-        
-        if VISUALIZATION:
-            source_key_corr_arr = np.zeros((len(source_down_arr), 3))
-            target_key_corr_arr = np.zeros((len(target_down_arr), 3))
+    model.train()
+    for epoch in range(num_epochs):
+        # Display pcds and deatils for each problem.
+        for batch_idx, (fpfhSourceTargetConcatenate, edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx) in enumerate(test_loader):
             
-            counter = 0
-            for i in source_voxelCorrIdx:
-                source_key_corr_arr[counter, :] = source_down_arr[i, :]
-                counter += 1 
-            
-            counter = 0
-            for i in target_voxelCorrIdx:
-                target_key_corr_arr[counter, :] = target_down_arr[i, :]
-                counter += 1 
-            
-            pcdA = o3d.geometry.PointCloud()
-            pcdB = o3d.geometry.PointCloud()
-            pcdA.points = o3d.utility.Vector3dVector(source_down_arr)
-            pcdB.points = o3d.utility.Vector3dVector(target_down_arr)
-            F.draw_registration_result(pcdA, pcdB, np.identity(4))
-            
-            # Visualize voxel correspondence
-            pcdC = o3d.geometry.PointCloud()
-            pcdD = o3d.geometry.PointCloud()
-            pcdC.points = o3d.utility.Vector3dVector(source_key_corr_arr)
-            pcdD.points = o3d.utility.Vector3dVector(target_key_corr_arr)
-            F.draw_registration_result(pcdC, pcdD, np.identity(4))
+            if VERBOSE:
+                print("\n================", batch_idx, "================\n")
+            data = Data(x=fpfhSourceTargetConcatenate[0], edge_index=edge_index_self[0], edge_index2=edge_index_cross[0])
+            data.x = torch.tensor(data.x, dtype=torch.float).to(device)
+                        
+            model.train()
+            optimizer.zero_grad()
+            out = model(data, sourceSize ,targetSize)
+            print("Z", out)
 
-        source_fpfh_arr = np.asarray(source_fpfh.data).T
-        target_fpfh_arr = np.asarray(target_fpfh.data).T
-        
-        if VERBOSE:
-            print(source_fpfh_arr.shape, target_fpfh_arr.shape)
 
-        fpfhSourceTargetConcatenate = np.concatenate((source_fpfh_arr, target_fpfh_arr), axis=0)
-        fpfhSourceTargetConcatenate = torch.tensor(fpfhSourceTargetConcatenate)
-        fpfhSourceTargetConcatenate = fpfhSourceTargetConcatenate.to(device)
-
-        sourceSize = source_fpfh_arr.shape[0]
-        targetSize = target_fpfh_arr.shape[0]
-
-        selfMatrix = np.zeros((sourceSize + targetSize, sourceSize + targetSize))
-        selfMatrix[0:sourceSize, 0:sourceSize] = 1
-        selfMatrix[sourceSize:len(selfMatrix), sourceSize:len(selfMatrix)] = 1
-        selfMatrix = torch.tensor(selfMatrix)
-
-        crossMatrix = np.ones((sourceSize + targetSize, sourceSize + targetSize))
-        crossMatrix[0:sourceSize, 0:sourceSize] = 0
-        crossMatrix[sourceSize:len(crossMatrix), sourceSize:len(crossMatrix)] = 0
-        crossMatrix = torch.tensor(crossMatrix)
-
-        # TODO: Don't know if needed
-        # for i in range(len(crossMatrix)):
-        #     crossMatrix[i][i] = 1
-
-        selfInput = torch.mm(selfMatrix, fpfhSourceTargetConcatenate)
-        crossInput = torch.mm(crossMatrix, fpfhSourceTargetConcatenate)
+            # loss.backward()
+            optimizer.step()
         

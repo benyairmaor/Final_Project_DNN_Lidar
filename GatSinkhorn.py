@@ -1,49 +1,53 @@
 import torch
+import numpy as np
+import ot
 import open3d as o3d
-import Utilities as F
-from torch_geometric.nn import GATConv
+import Utilities as U
+from torch_geometric.nn import GATv2Conv
 import torch_geometric.transforms as T
+import torch.nn.functional as F
 
 class GAT(torch.nn.Module):
-    def __init__(self, num_features, num_classes):
+    def __init__(self, num_features, num_classes, hid = 8, in_head = 8, out_head = 1):
         super(GAT, self).__init__()
-        self.hid = 8
-        self.in_head = 8
-        self.out_head = 1
+        self.hid = hid
+        self.in_head = in_head
+        self.out_head = out_head
         
-        
-        self.conv1 = GATConv(num_features, self.hid, heads=self.in_head, dropout=0.6)
-        self.conv2 = GATConv(self.hid*self.in_head, num_classes, concat=False,
-                             heads=self.out_head, dropout=0.6)
+        self.conv1 = GATv2Conv(num_features, self.hid, heads=self.in_head, dropout=0.6)
+        self.conv2 = GATv2Conv(self.hid*self.in_head, num_classes, concat=False, heads=self.out_head, dropout=0.6)
 
-    def forward(self, data):
-        x, edge_index = data.x, data.edge_index
-                
-        x = F.dropout(x, p=0.6, training=self.training)
-        x = self.conv1(x, edge_index)
-        x = F.elu(x)
-        x = F.dropout(x, p=0.6, training=self.training)
-        x = self.conv2(x, edge_index)
-        
-        return F.log_softmax(x, dim=1)
-    
-    
-    
+    def forward(self, data, sourceSize ,targetSize):
+        x, edge_index, edge_index2 = data.x, data.edge_index, data.edge_index2
 
+        for i in range(4):        
+            x = F.dropout(x, p=0.6, training=self.training)
+            x = self.conv1(x, edge_index)
+            x = F.elu(x)
+            x = F.dropout(x, p=0.6, training=self.training)
+            x = self.conv2(x, edge_index2)
+            x = F.log_softmax(x, dim=1)
 
+        problem = x.detach().numpy()
+        source_arr = problem[0:sourceSize, :]
+        target_arr = problem[sourceSize: sourceSize + targetSize, :]
+        scores = np.asarray(ot.dist(source_arr, target_arr))
 
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=5e-4)
+        # Prepare dust bin for loss matrix M.
+        row_to_be_added = np.zeros(((target_arr.shape[0])))
+        column_to_be_added = np.zeros(((source_arr.shape[0]+1)))
+        scores = np.vstack([scores, row_to_be_added])
+        scores = np.vstack([scores.T, column_to_be_added])
+        scores = scores.T
 
-# model.train()
-# for epoch in range(1000):
-#     model.train()
-#     optimizer.zero_grad()
-#     out = model(data)
-#     loss = F.nll_loss(out[data.train_mask], data.y[data.train_mask])
-    
-#     if epoch%200 == 0:
-#         print(loss)
-    
-#     loss.backward()
-#     optimizer.step()
-    
+        scores.shape = (1, scores.shape[0], scores.shape[1])
+        scores = torch.from_numpy(scores)
+
+        # Print loss matrix shape
+        print("Loss matrix scores shape : ", scores.size()) 
+        dust_bin = 0.4
+        num_iter = 1
+
+        Z =U.log_optimal_transport(scores=scores, alpha=dust_bin, iters=num_iter)
+
+        return Z
