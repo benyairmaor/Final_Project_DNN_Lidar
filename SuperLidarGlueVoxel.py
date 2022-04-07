@@ -116,33 +116,33 @@ if __name__ == '__main__':
             pcdD.points = o3d.utility.Vector3dVector(target_key_corr_arr)
             F.draw_registration_result(pcdC, pcdD, np.identity(4))
 
-            source_fpfh_arr = np.asarray(source_fpfh.data).T
-            target_fpfh_arr = np.asarray(target_fpfh.data).T
-            
-            if VERBOSE:
-                print(source_fpfh_arr.shape, target_fpfh_arr.shape)
+        source_fpfh_arr = np.asarray(source_fpfh.data).T
+        target_fpfh_arr = np.asarray(target_fpfh.data).T
+        
+        if VERBOSE:
+            print(source_fpfh_arr.shape, target_fpfh_arr.shape)
 
-            fpfhSourceTargetConcatenate = np.concatenate((source_fpfh_arr, target_fpfh_arr), axis=0)
-            fpfhSourceTargetConcatenate = torch.tensor(fpfhSourceTargetConcatenate)
-            fpfhSourceTargetConcatenate = fpfhSourceTargetConcatenate.to(device)
+        fpfhSourceTargetConcatenate = np.concatenate((source_fpfh_arr, target_fpfh_arr), axis=0)
+        fpfhSourceTargetConcatenate = torch.tensor(fpfhSourceTargetConcatenate)
+        fpfhSourceTargetConcatenate = fpfhSourceTargetConcatenate.to(device)
 
-            sourceSize = source_fpfh_arr.shape[0]
-            targetSize = target_fpfh_arr.shape[0]
+        sourceSize = source_fpfh_arr.shape[0]
+        targetSize = target_fpfh_arr.shape[0]
 
-            selfMatrix = np.zeros((sourceSize + targetSize, sourceSize + targetSize))
-            selfMatrix[0:sourceSize, 0:sourceSize] = 1
-            selfMatrix[sourceSize:len(selfMatrix), sourceSize:len(selfMatrix)] = 1
-            selfMatrix = torch.tensor(selfMatrix)
+        selfMatrix = np.zeros((sourceSize + targetSize, sourceSize + targetSize))
+        selfMatrix[0:sourceSize, 0:sourceSize] = 1
+        selfMatrix[sourceSize:len(selfMatrix), sourceSize:len(selfMatrix)] = 1
+        selfMatrix = torch.tensor(selfMatrix)
 
-            crossMatrix = np.ones((sourceSize + targetSize, sourceSize + targetSize))
-            crossMatrix[0:sourceSize, 0:sourceSize] = 0
-            crossMatrix[sourceSize:len(crossMatrix), sourceSize:len(crossMatrix)] = 0
-            crossMatrix = torch.tensor(crossMatrix)
+        crossMatrix = np.ones((sourceSize + targetSize, sourceSize + targetSize))
+        crossMatrix[0:sourceSize, 0:sourceSize] = 0
+        crossMatrix[sourceSize:len(crossMatrix), sourceSize:len(crossMatrix)] = 0
+        crossMatrix = torch.tensor(crossMatrix)
 
-            # TODO: Don't know if needed
-            # for i in range(len(crossMatrix)):
-            #     crossMatrix[i][i] = 1
+        # TODO: Don't know if needed
+        # for i in range(len(crossMatrix)):
+        #     crossMatrix[i][i] = 1
 
-            selfInput = torch.mm(selfMatrix, fpfhSourceTargetConcatenate)
-            crossInput = torch.mm(crossMatrix, fpfhSourceTargetConcatenate)
-            
+        selfInput = torch.mm(selfMatrix, fpfhSourceTargetConcatenate)
+        crossInput = torch.mm(crossMatrix, fpfhSourceTargetConcatenate)
+        

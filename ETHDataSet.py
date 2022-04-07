@@ -52,7 +52,8 @@ class ETHDataset(Dataset):
             idx_row = int((i - 1) / 4)
             idx_col = (i - 1) % 4
             M[idx_row, idx_col] = self.pcd_list.at[idx, 't' + str(i)]
-        M[3, :] = [0, 0, 0, 1]     
+        M[3, :] = [0, 0, 0, 1]  
+               = F.preprocessing(self.pcd_list.at[idx, 'source'], self.pcd_list.at[idx, 'target'], self.pcd_list.at[idx, 'overlap'], M)   
         return self.pcd_list.at[idx, 'source'], self.pcd_list.at[idx, 'target'], self.pcd_list.at[idx, 'overlap'], M
 
     # Method to get source and target as PCDs
