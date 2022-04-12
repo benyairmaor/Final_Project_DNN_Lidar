@@ -140,7 +140,7 @@ def execute_global_registration_with_corr(source_down, target_down, corr):
                 o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)]
     criteria = o3d.pipelines.registration.RANSACConvergenceCriteria(1000000, 0.9999)
     seed = 1
-    corr_size = 0.1001
+    corr_size = 0.9999999
     corr = o3d.utility.Vector2iVector(corr)
     result = o3d.pipelines.registration.registration_ransac_based_on_correspondence(
         source_down, target_down, corr, corr_size, estimation_method, ransac_n, checkers, criteria, seed)

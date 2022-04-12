@@ -60,7 +60,6 @@ if __name__ == '__main__':
                 corr[j][0], corr[j][1] = max[0], max[1]
                 sink[max[0], :] = 0
                 sink[:, max[1]] = 0
-            
             aaa = np.asarray(source.points)
             # For sinkhorn correspondence result - run first glabal(RANSAC) and then local(ICP) regestration
             result_ransac = UR.execute_global_registration_with_corr(source_down, target_down, corr)
@@ -80,7 +79,9 @@ if __name__ == '__main__':
 
             print(results[iter_dataset][i][0], "fitness =", fitness)
             print("avarage score until now =",sum / len(results[iter_dataset]))
-            UR.draw_registration_result(source, target, result_icp.transformation, "ICP result")
+            print(result_ransac.transformation,result_icp.transformation)
+            UR.draw_registration_result(source, target, result_ransac.transformation, "ICP result")
+            # UR.draw_registration_result(source, target, result_icp.transformation, "ICP result")
 
         avg_result_datasets.append([directory, sum / len(results[iter_dataset])])
         print("\navg result of dataset", directory, "is",avg_result_datasets[iter_dataset][1], "\n\n")
