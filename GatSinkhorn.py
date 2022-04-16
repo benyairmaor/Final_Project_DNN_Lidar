@@ -32,22 +32,23 @@ class GAT(torch.nn.Module):
         source_arr = problem[0:sourceSize, :]
         target_arr = problem[sourceSize: sourceSize + targetSize, :]
         scores = np.asarray(ot.dist(source_arr, target_arr))
-
-        # Prepare dust bin for loss matrix M.
-        row_to_be_added = np.zeros(((target_arr.shape[0])))
-        column_to_be_added = np.zeros(((source_arr.shape[0]+1)))
-        scores = np.vstack([scores, row_to_be_added])
-        scores = np.vstack([scores.T, column_to_be_added])
-        scores = scores.T
+        # # Prepare dust bin for loss matrix M.
+        # row_to_be_added = np.zeros(((target_arr.shape[0])))
+        # column_to_be_added = np.zeros(((source_arr.shape[0]+1)))
+        # scores = np.vstack([scores, row_to_be_added])
+        # scores = np.vstack([scores.T, column_to_be_added])
+        # scores = scores.T
 
         scores.shape = (1, scores.shape[0], scores.shape[1])
         scores = torch.from_numpy(scores)
 
-        # Print loss matrix shape
-        print("Loss matrix scores shape : ", scores.size()) 
-        dust_bin = 0.4
-        num_iter = 1
+        dustBin = torch.nn.Parameter(torch.tensor(1.))
+        self.register_parameter('dustBin', dustBin)
 
-        Z =U.log_optimal_transport(scores=scores, alpha=dust_bin, iters=num_iter)
+        # Print loss matrix shape
+        # print("Loss matrix scores shape : ", scores.size()) 
+        num_iter = 100
+
+        Z =U.log_optimal_transport(scores=scores, alpha=self.dustBin, iters=num_iter)
 
         return Z

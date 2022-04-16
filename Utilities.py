@@ -49,7 +49,27 @@ def findCorr(source, target, distanceThreshold):
     
     return res, listSource, listTarget
 
+def findCorrZeroOne(source, target, distanceThreshold):
+    # prepare list and copy data.
+    listSource = []
+    listTarget = []
+    tragetCopy = np.asarray(copy.deepcopy(target))
+    sourceCopy = np.asarray(copy.deepcopy(source))
+    
+    # calculate the dist between all points and copy.
+    M = np.asarray(ot.dist(sourceCopy, tragetCopy))
+    M_result = copy.deepcopy(M)
+    for i in range(len(sourceCopy)):
+        for j in range(len(tragetCopy)):
+            if M_result[i,j]<=distanceThreshold:
+                M_result[i,j]=1
+                listSource.append(i)
+                listTarget.append(j)
+            else:
+                M_result[i,j]=0
+    return M_result, listSource, listTarget
 
+    
 
 ############################### Find the indecies of keypoint in the whole PCD ###############################
 def findRealCorrIdx(realS, realT, keyS, keyT, idxKeyS, idxKeyT):
@@ -152,8 +172,8 @@ def preprocess_point_cloud(source, target, voxel_size):
 
 
 
-VERBOSE = True
-VISUALIZATION = True
+VERBOSE = False
+VISUALIZATION = False
 voxel_size = 1
 device = 'cpu'
 
@@ -179,7 +199,7 @@ def preprocessing(source, target, overlap, M):
     target_down_arr = np.asarray(target_down.points)
 
     # Find the correspondence between the PCDs voxel
-    scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx = findCorr(source_down_arr, target_down_arr, 0.1001)
+    scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx = findCorrZeroOne(source_down_arr, target_down_arr, 0.2002)
     
     if VERBOSE:
         print("\nvoxel finished")
