@@ -8,7 +8,7 @@ from torch_geometric.data import Data
 import GatSinkhorn as GATS
 
 VERBOSE = True
-VISUALIZATION = False
+VISUALIZATION = True
 voxel_size = 1
 
 def loss(scoreMatrix,P):
@@ -41,8 +41,20 @@ def loss(scoreMatrix,P):
     return torch.Tensor(-matches-unmatches_a-unmatches_b)
 
 
-
-                
+def loss2(all_matches, scores):
+    # check if indexed correctly
+    loss = []
+    for i in range(all_matches.shape[1]):
+      for j in range(all_matches.shape[2]):
+        if all_matches[0][i][j] == 1:
+            loss.append(-torch.log(scores[0][i][j].exp() )) # check batch size == 1 ?
+    # for p0 in unmatched0:
+    #     loss += -torch.log(scores[0][p0][-1])
+    # for p1 in unmatched1:
+    #     loss += -torch.log(scores[0][-1][p1])
+    loss_mean = torch.mean(torch.stack(loss))
+    loss_mean = torch.reshape(loss_mean, (1, -1))      
+    return loss_mean
 
 
 if __name__ == '__main__':
@@ -83,17 +95,23 @@ if __name__ == '__main__':
                 print("\n================", batch_idx, "================\n")
             data = Data(x=fpfhSourceTargetConcatenate[0], edge_index=edge_index_self[0], edge_index2=edge_index_cross[0])
             data.x = torch.tensor(data.x, dtype=torch.float).to(device)
-                        
             optimizer.zero_grad()
             out = model(data, sourceSize ,targetSize)
 
-            out1 = out.detach().numpy()
-            out1 = out1[0,0:out1.shape[1] - 1, 0:out1.shape[2] - 1]
-            scoreMatrix1 = scoreMatrix.detach().numpy()
+            outx=out[0, 0 : out.shape[1] - 1, 0 : out.shape[2] - 1]
+            max = np.unravel_index(torch.argmax(outx, axis=None), outx.shape)
+            print("max", max)
+        
+            # Save corr weights.
+            print("Correspondence set index values: ", max[0], max[1], scoreMatrix[0, max[0], max[1]], out[0, max[0], max[1]])
+            print("Num of corr", scoreMatrix.sum())
+            # out1 = out.detach().numpy()
+            # out1 = out1[0,0:out1.shape[1] - 1, 0:out1.shape[2] - 1]
+            # scoreMatrix1 = scoreMatrix.detach().numpy()
             
 
 
-            loss_batch=loss(scoreMatrix,out)
+            loss_batch=loss2(scoreMatrix,out)
             # loss_batch = torch.tensor(0.)
             # for sourceIdx in range(out1.shape[0] - 1):
             #     targetIdx = np.argmax(out1[sourceIdx,:])
@@ -106,7 +124,7 @@ if __name__ == '__main__':
             #         else:
             #             loss_batch += scoreMatrix1[0, sourceIdx, targetIdx]
             
-            loss_batch /= (out1.shape[0] - 1)
+            # loss_batch /= (out.shape[0] - 1)
             # loss_batch = torch.tensor(loss_batch,requires_grad=True)
             
             if VERBOSE:
@@ -115,12 +133,12 @@ if __name__ == '__main__':
             loss_batch.backward()
             optimizer.step()
             
-            loss_epoch += loss_batch
+            # loss_epoch += loss_batch
         
-        loss_epoch /= len(test_loader)
+        # loss_epoch /= len(test_loader)
         
-        if VERBOSE:
-            print("loss epoch = ", loss_epoch)
+        # if VERBOSE:
+        #     print("loss epoch = ", loss_epoch)
             
 
             
@@ -132,5 +150,24 @@ if __name__ == '__main__':
         # print("1", scoreMatrix1[0, max[0], max[1]])
         # print("0", scoreMatrix1[0, min[0], min[1]])
 
+
+
+
+
+
+
+
+        # # Get the matches with score above "match_threshold".
+        # max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
+        # indices0, indices1 = max0.indices, max1.indices
+        # mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
+        # mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)
+        # zero = scores.new_tensor(0)
+        # mscores0 = torch.where(mutual0, max0.values.exp(), zero)
+        # mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
+        # valid0 = mutual0 & (mscores0 > self.config['match_threshold'])
+        # valid1 = mutual1 & valid0.gather(1, indices1)
+        # indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
+        # indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
 
         

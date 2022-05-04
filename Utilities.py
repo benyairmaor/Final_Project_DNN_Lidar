@@ -172,8 +172,8 @@ def preprocess_point_cloud(source, target, voxel_size):
 
 
 
-VERBOSE = False
-VISUALIZATION = False
+VERBOSE = True
+VISUALIZATION = True
 voxel_size = 1
 device = 'cpu'
 
