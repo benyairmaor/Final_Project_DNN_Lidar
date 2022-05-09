@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     # Run sinkhorn with dust bin for find corr.
     sink = np.asarray(ot.sinkhorn(s, t, M, 100, numItermax=1200,
-                      stopThr=1e-9, verbose=False, method='sinkhorn'))
+                      stopThr=1e-9, verbose=False, method='sinkhorn_log'))
 
     # Take number of top corr from sinkhorn result, take also the corr weights and print corr result.
     corr_size = 500
