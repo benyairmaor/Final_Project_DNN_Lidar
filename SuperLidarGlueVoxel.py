@@ -8,52 +8,56 @@ from torch_geometric.data import Data
 import GatSinkhorn as GATS
 
 VERBOSE = True
-VISUALIZATION = True
+VISUALIZATION = False
 voxel_size = 1
 
-def loss(scoreMatrix,P):
-    print(scoreMatrix.size(),P.size())
-    matches=torch.tensor(0.)
-    unmatches_a=torch.tensor(0.)
-    unmatches_b=torch.tensor(0.)
+
+def loss(scoreMatrix, P):
+    print(scoreMatrix.size(), P.size())
+    matches = torch.tensor(0.)
+    unmatches_a = torch.tensor(0.)
+    unmatches_b = torch.tensor(0.)
 
     for i in range(scoreMatrix.size(1)):
-        flag_row=False
+        flag_row = False
         for j in range(scoreMatrix.size(2)):
-            if scoreMatrix[0,i,j]==1:
+            if scoreMatrix[0, i, j] == 1:
                 # print(torch.log(P[0,i,j]))
                 # matches+=torch.log(P[0,i,j])
-                matches+=(P[0,i,j])
+                matches += (P[0, i, j])
 
-                flag_row=True
+                flag_row = True
         if flag_row == False:
             # unmatches_a+=torch.log(P[0,i,scoreMatrix.size(2)])
-            unmatches_a+=(P[0,i,scoreMatrix.size(2)])
+            unmatches_a += (P[0, i, scoreMatrix.size(2)])
     for i in range(scoreMatrix.size(2)):
-        flag_col=False
+        flag_col = False
         for j in range(scoreMatrix.size(1)):
-            if scoreMatrix[0,j,i]==1:
-                flag_col=True
+            if scoreMatrix[0, j, i] == 1:
+                flag_col = True
         if flag_col == False:
-                # unmatches_b+=torch.log(P[0,scoreMatrix.size(1),i])
-                unmatches_b+=(P[0,scoreMatrix.size(1),i])
+            # unmatches_b+=torch.log(P[0,scoreMatrix.size(1),i])
+            unmatches_b += (P[0, scoreMatrix.size(1), i])
 
     return torch.Tensor(-matches-unmatches_a-unmatches_b)
 
 
 def loss2(all_matches, scores):
+    all_matches.requires_grad = True
+    scores.requires_grad = True
     # check if indexed correctly
     loss = []
     for i in range(all_matches.shape[1]):
-      for j in range(all_matches.shape[2]):
-        if all_matches[0][i][j] == 1:
-            loss.append(-torch.log(scores[0][i][j].exp() )) # check batch size == 1 ?
+        for j in range(all_matches.shape[2]):
+            if all_matches[0][i][j] == 1:
+                # check batch size == 1 ?
+                loss.append(-torch.log(scores[i][j].exp()))
     # for p0 in unmatched0:
     #     loss += -torch.log(scores[0][p0][-1])
     # for p1 in unmatched1:
     #     loss += -torch.log(scores[0][-1][p1])
     loss_mean = torch.mean(torch.stack(loss))
-    loss_mean = torch.reshape(loss_mean, (1, -1))      
+    loss_mean = torch.reshape(loss_mean, (1, -1))
     return loss_mean
 
 
@@ -67,22 +71,26 @@ if __name__ == '__main__':
     # Split the data to train test
     train_size = int(len(ETH_dataset) * 0.8)
     test_size = len(ETH_dataset) - int(len(ETH_dataset) * 0.8)
-    train_set, test_set = torch.utils.data.random_split(ETH_dataset, [train_size, test_size])
+    train_set, test_set = torch.utils.data.random_split(
+        ETH_dataset, [train_size, test_size])
 
     # TrainLoader, 80% of the data
-    train_loader = DataLoader(train_set, batch_size=1, num_workers=0, shuffle=False)
+    train_loader = DataLoader(train_set, batch_size=1,
+                              num_workers=0, shuffle=False)
 
     #  TestLoader, 20% of the data
-    test_loader = DataLoader(test_set, batch_size=1, num_workers=0, shuffle=False)
+    test_loader = DataLoader(test_set, batch_size=1,
+                             num_workers=0, shuffle=False)
 
-    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = 'cpu'
 
-    model = GATS.GAT(33, 33, hid=33, in_head=8, out_head=1).to(device)
+    model = GATS.GAT().to(device)
     model.train()
-    
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=5e-4)
+
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=0.01)
+    # print("model.parameters(): ", model.parameters())
 
     for epoch in range(num_epochs):
         # Display pcds and deatils for each problem.
@@ -90,28 +98,39 @@ if __name__ == '__main__':
         if VERBOSE:
             print("\n================", epoch, "================\n")
         for batch_idx, (fpfhSourceTargetConcatenate, edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx) in enumerate(test_loader):
-            
+
+            for name, param in model.named_parameters():
+                if param.requires_grad:
+                    print("model.named_parameters(): ", name, param.data)
+
             if VERBOSE:
                 print("\n================", batch_idx, "================\n")
-            data = Data(x=fpfhSourceTargetConcatenate[0], edge_index=edge_index_self[0], edge_index2=edge_index_cross[0])
+            data = Data(
+                x=fpfhSourceTargetConcatenate[0], edge_index=edge_index_self[0], edge_index2=edge_index_cross[0])
             data.x = torch.tensor(data.x, dtype=torch.float).to(device)
             optimizer.zero_grad()
-            out = model(data, sourceSize ,targetSize)
+            out, idx0, idx1 = model(data, sourceSize, targetSize)
+            print(out)
+            # print(idx0, idx1)
+            # for i in range(0, len(idx0[0])):
+            #     if idx0[0, i] != -1:
+            #         print(
+            #             "\n(i=", i, ",x[i]=", idx0[0, i], ") => scoreMatrix[0, i, x[i]] = ", scoreMatrix[0, i, idx0[0, i]], "\n")
 
-            outx=out[0, 0 : out.shape[1] - 1, 0 : out.shape[2] - 1]
-            max = np.unravel_index(torch.argmax(outx, axis=None), outx.shape)
-            print("max", max)
-        
+            # outx = out[0, 0: out.shape[1] - 1, 0: out.shape[2] - 1]
+            # max = np.unravel_index(torch.argmax(outx, axis=None), outx.shape)
+            # print("max", max)
+
             # Save corr weights.
-            print("Correspondence set index values: ", max[0], max[1], scoreMatrix[0, max[0], max[1]], out[0, max[0], max[1]])
-            print("Num of corr", scoreMatrix.sum())
-            # out1 = out.detach().numpy()
-            # out1 = out1[0,0:out1.shape[1] - 1, 0:out1.shape[2] - 1]
-            # scoreMatrix1 = scoreMatrix.detach().numpy()
-            
+            # print("Correspondence set index values: ",
+            #       max[0], max[1], scoreMatrix[0, max[0], max[1]], out[0, max[0], max[1]])
+            # print("Num of corr", scoreMatrix.sum())
+            out1 = out.detach().numpy()
+            out1 = out1[0:out1.shape[0] - 1, 0:out1.shape[1] - 1]
+            scoreMatrix1 = scoreMatrix.detach().numpy()
 
+            loss_batch = loss2(scoreMatrix, out)
 
-            loss_batch=loss2(scoreMatrix,out)
             # loss_batch = torch.tensor(0.)
             # for sourceIdx in range(out1.shape[0] - 1):
             #     targetIdx = np.argmax(out1[sourceIdx,:])
@@ -123,51 +142,35 @@ if __name__ == '__main__':
             #             loss_batch += 1
             #         else:
             #             loss_batch += scoreMatrix1[0, sourceIdx, targetIdx]
-            
+
             # loss_batch /= (out.shape[0] - 1)
             # loss_batch = torch.tensor(loss_batch,requires_grad=True)
-            
+
             if VERBOSE:
                 print("loss batch = ", loss_batch)
-            
+
+            max = np.unravel_index(np.argmax(out1, axis=None), out1.shape)
+            min = np.unravel_index(np.argmin(out1, axis=None), out1.shape)
+            print(max[0], max[1], out1[max[0], max[1]])
+            print(min[0], min[1], out1[min[0], min[1]])
+            print("Z", out)
+            print("1", scoreMatrix1[0, max[0], max[1]])
+            print("0", scoreMatrix1[0, min[0], min[1]])
+
             loss_batch.backward()
             optimizer.step()
-            
+
             # loss_epoch += loss_batch
-        
+
         # loss_epoch /= len(test_loader)
-        
+
         # if VERBOSE:
         #     print("loss epoch = ", loss_epoch)
-            
 
-            
-        # max = np.unravel_index(np.argmax(out1, axis=None), out1.shape)
-        # min = np.unravel_index(np.argmin(out1, axis=None), out1.shape)
-        # print(max[0], max[1], out1[max[0], max[1]])
-        # print(min[0], min[1], out1[min[0], min[1]])
-        # print("Z", out)
-        # print("1", scoreMatrix1[0, max[0], max[1]])
-        # print("0", scoreMatrix1[0, min[0], min[1]])
-
-
-
-
-
-
-
-
-        # # Get the matches with score above "match_threshold".
-        # max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
-        # indices0, indices1 = max0.indices, max1.indices
-        # mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
-        # mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)
-        # zero = scores.new_tensor(0)
-        # mscores0 = torch.where(mutual0, max0.values.exp(), zero)
-        # mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
-        # valid0 = mutual0 & (mscores0 > self.config['match_threshold'])
-        # valid1 = mutual1 & valid0.gather(1, indices1)
-        # indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
-        # indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
-
-        
+            # max = np.unravel_index(np.argmax(out1, axis=None), out1.shape)
+            # min = np.unravel_index(np.argmin(out1, axis=None), out1.shape)
+            # print(max[0], max[1], out1[max[0], max[1]])
+            # print(min[0], min[1], out1[min[0], min[1]])
+            # print("Z", out)
+            # print("1", scoreMatrix1[0, max[0], max[1]])
+            # print("0", scoreMatrix1[0, min[0], min[1]])
