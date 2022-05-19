@@ -11,6 +11,9 @@ VERBOSE = True
 VISUALIZATION = True
 voxel_size = 1
 
+def arange_like(x, dim: int):
+    return x.new_ones(x.shape[dim]).cumsum(0) - 1  # traceable in 1.1
+
 def loss(scoreMatrix,P):
     print(scoreMatrix.size(),P.size())
     matches=torch.tensor(0.)
@@ -89,29 +92,117 @@ if __name__ == '__main__':
         loss_epoch = torch.tensor(0.)
         if VERBOSE:
             print("\n================", epoch, "================\n")
-        for batch_idx, (fpfhSourceTargetConcatenate, edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx) in enumerate(test_loader):
+        for batch_idx, (fpfhSourceTargetConcatenate, source_down, target_down, edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx) in enumerate(test_loader):
             
             if VERBOSE:
                 print("\n================", batch_idx, "================\n")
             data = Data(x=fpfhSourceTargetConcatenate[0], edge_index=edge_index_self[0], edge_index2=edge_index_cross[0])
             data.x = torch.tensor(data.x, dtype=torch.float).to(device)
             optimizer.zero_grad()
-            out = model(data, sourceSize ,targetSize)
+            # sink = model(data, sourceSize ,targetSize)
 
-            outx=out[0, 0 : out.shape[1] - 1, 0 : out.shape[2] - 1]
-            max = np.unravel_index(torch.argmax(outx, axis=None), outx.shape)
-            print("max", max)
+
+
+
+            # source_arr = fpfhSourceTargetConcatenate[0:sourceSize, :]
+            # target_arr = fpfhSourceTargetConcatenate[sourceSize: sourceSize + targetSize, :]
+
+            # # ###############################################
+            # scores = torch.einsum('bdn,bdm->bnm',source_arr.T, target_arr.T)
+            # scores = scores.reshape(1,scores.shape[0], scores.shape[1])
+
+            scores = [[0,0.14,0.4,1,0.23,0],
+                      [0.9,-1,0.5,0.32,0.21, 0],
+                      [0.42,1,0.25,0.6,0.3,0.7],
+                      [0.8,0,0.55,0.25,1,1],
+                      [0.8,0,0.55,0.25,1,1],
+                      [0.05,0,0.15,0,-1,0],]
+            scores = torch.tensor(scores)
+            scores = scores.reshape(1, scores.shape[0], scores.shape[1])
+            dustBin = torch.tensor(1.)
+            num_iter = 1000  
+            scores = F.log_optimal_transport(scores=scores, alpha=dustBin, iters=num_iter)
+            
+            
+            
+            # Get the matches with score above "match_threshold".
+            max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
+            indices0, indices1 = max0.indices, max1.indices
+            mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
+            mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)
+            zero = scores.new_tensor(0)
+            mscores0 = torch.where(mutual0, max0.values.exp(), zero)
+            mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
+            valid0 = mutual0 
+            valid1 = mutual1 & valid0.gather(1, indices1)
+            indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
+            indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            # outx=out[0, 0 : out.shape[1] - 1, 0 : out.shape[2] - 1]
+            # max = np.unravel_index(torch.argmax(outx, axis=None), outx.shape)
+            # print("max", max)
         
             # Save corr weights.
-            print("Correspondence set index values: ", max[0], max[1], scoreMatrix[0, max[0], max[1]], out[0, max[0], max[1]])
-            print("Num of corr", scoreMatrix.sum())
+            # print("Correspondence set index values: ", max[0], max[1], scoreMatrix[0, max[0], max[1]], out[0, max[0], max[1]])
+            # print("Num of corr", scoreMatrix.sum())
             # out1 = out.detach().numpy()
             # out1 = out1[0,0:out1.shape[1] - 1, 0:out1.shape[2] - 1]
             # scoreMatrix1 = scoreMatrix.detach().numpy()
             
+            # Take number of top corr from sinkhorn result, take also the corr weights and print corr result.
+            # corr_size = 500
+            # corr = np.zeros((corr_size, 2))
+            # corr_weights = np.zeros((corr_size, 1))
+            # j = 0
+            # sink[0, scoreMatrix.shape[0]-1, :] = 0
+            # sink[0, :, scoreMatrix.shape[1]-1] = 0
+            # while j < corr_size:
+            #     max = np.unravel_index(np.argmax(sink, axis=None), sink.shape)
+            #     corr[j][0], corr[j][1] = max[0], max[1]
+            #     # Save corr weights.
+            #     corr_weights[j] = sink[0, max[0], max[1]]  # Pn
+            #     sink[0, max[0], :] = 0
+            #     sink[0, :, max[1]] = 0
+            #     j = j+1
+            # print("Correspondence set index values: ", corr)
 
+            # # Build numpy array for original points
+            # source_arr = np.asarray(source_down.points)
+            # target_arr = np.asarray(target_down.points)
 
-            loss_batch=loss2(scoreMatrix,out)
+            # # Take only the relevant indexes (without dust bin)
+            # corr_values_source = source_arr[corr[:, 0].astype(int), :]  # Xn
+            # corr_values_target = target_arr[corr[:, 1].astype(int), :]  # Yn
+
+            # pcdS = o3d.geometry.PointCloud()
+            # pcdS.points = o3d.utility.Vector3dVector(corr_values_source)
+            # pcdT = o3d.geometry.PointCloud()
+            # pcdT.points = o3d.utility.Vector3dVector(corr_values_target)
+            # UR.draw_registration_result(pcdS, pcdT, np.identity(4), "debug")
+
+            # Norm to sum equal to one for corr weights.
+            # corr_weights = (corr_weights / np.sum(corr_weights))  # Pn norm
+
+            # # Calc the mean of source and target point/FPFH with respect to points weight.
+            # source_mean = np.sum(corr_values_source*corr_weights, axis=0)/np.sum(corr_weights)  # X0
+            # target_mean = np.sum(corr_values_target*corr_weights, axis=0)/np.sum(corr_weights)  # Y0
+
+            # # Calc the mean-reduced coordinate for Y and X
+            # corr_values_source = corr_values_source-source_mean  # An
+            # corr_values_target = corr_values_target-target_mean  # Bn
+
+            # print(corr_values_source.shape, corr_values_target.shape, corr_weights.shape, source_mean.shape, target_mean.shape)
+
+            # loss_batch=loss2(scoreMatrix,out)
             # loss_batch = torch.tensor(0.)
             # for sourceIdx in range(out1.shape[0] - 1):
             #     targetIdx = np.argmax(out1[sourceIdx,:])
@@ -127,11 +218,11 @@ if __name__ == '__main__':
             # loss_batch /= (out.shape[0] - 1)
             # loss_batch = torch.tensor(loss_batch,requires_grad=True)
             
-            if VERBOSE:
-                print("loss batch = ", loss_batch)
+            # if VERBOSE:
+                # print("loss batch = ", loss_batch)
             
-            loss_batch.backward()
-            optimizer.step()
+            # loss_batch.backward()
+            # optimizer.step()
             
             # loss_epoch += loss_batch
         
@@ -157,17 +248,5 @@ if __name__ == '__main__':
 
 
 
-        # # Get the matches with score above "match_threshold".
-        # max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
-        # indices0, indices1 = max0.indices, max1.indices
-        # mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
-        # mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)
-        # zero = scores.new_tensor(0)
-        # mscores0 = torch.where(mutual0, max0.values.exp(), zero)
-        # mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
-        # valid0 = mutual0 & (mscores0 > self.config['match_threshold'])
-        # valid1 = mutual1 & valid0.gather(1, indices1)
-        # indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
-        # indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
 
         

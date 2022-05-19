@@ -173,7 +173,7 @@ def preprocess_point_cloud(source, target, voxel_size):
 
 
 VERBOSE = True
-VISUALIZATION = True
+VISUALIZATION = False
 voxel_size = 1
 device = 'cpu'
 
@@ -291,7 +291,7 @@ def preprocessing(source, target, overlap, M):
                 edge_index_cross[1].append(j)
     edge_index_self_ = torch.tensor(edge_index_self, dtype=torch.long)
     edge_index_cross_ = torch.tensor(edge_index_cross, dtype=torch.long)
-    return fpfhSourceTargetConcatenate, edge_index_self_, edge_index_cross_, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx
+    return fpfhSourceTargetConcatenate, edge_index_self_, edge_index_cross_, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx, source_down, target_down
 
 def log_sinkhorn_iterations(Z, log_mu, log_nu, iters: int):
     """ Perform Sinkhorn Normalization in Log-space for stability"""

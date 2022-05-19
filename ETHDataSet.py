@@ -4,6 +4,7 @@ import copy
 import open3d as o3d
 from torch.utils.data import Dataset
 import Utilities as F
+import torch
 
 
 class ETHDataset(Dataset):
@@ -33,8 +34,8 @@ class ETHDataset(Dataset):
         if self.target_transform:
             label = self.target_transform(label)
 
-        fpfhSourceTargetConcatenate, edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx = F.preprocessing(source_, target_, overlap, M)
-        return np.asarray(fpfhSourceTargetConcatenate), edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx
+        fpfhSourceTargetConcatenate, edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx, source_down, target_down = F.preprocessing(source_, target_, overlap, M)
+        return np.asarray(fpfhSourceTargetConcatenate), np.asarray(source_down.points), np.asarray(target_down.points), edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx
 
     # Method to get all the problems from global file
     def get_data_global(self, directory):
