@@ -20,8 +20,7 @@ if __name__ == '__main__':
         matches.append(0)
         size_dataset.append(len(sources))
         sum = 0
-        for i in range(len(sources) - 1, len(sources)):
-            i -= len(sources) - 1
+        for i in range(len(sources)):
             print("directory:" + directory + ", iter:" + str(i + 1) + "/" + str(len(sources)))
             # Save path for source & target pcd.
             source_path = 'Datasets/eth/' + directory + '/' + sources[i]
@@ -58,7 +57,6 @@ if __name__ == '__main__':
             print(results[iter_dataset][i][0], "fitness =", fitness)
             print("avarage score until now =", sum / len(results[iter_dataset]))
             UR.draw_registration_result(source, target, result_icp.transformation, "ICP result")
-            i = len(sources) - 1
         
         avg_result_datasets.append([directory, sum / len(results[iter_dataset])])
         print("avg result of dataset", directory, "is", avg_result_datasets[iter_dataset][1])
