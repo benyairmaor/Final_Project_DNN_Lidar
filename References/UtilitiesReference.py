@@ -2,18 +2,19 @@ import numpy as np
 import open3d as o3d
 import copy
 import pandas as pd
+import ot
 
 
 ######################################################################
 ##################         General Functions        ##################
 ######################################################################
 
-# Normlize data between 0 to 1.
-def normlizeToOne(data):
-    return (data - np.min(data)) / (np.max(data) - np.min(data))
-# Calculate score from invers translation marix.
-def calcScore(inversMatrix, resMatrix):
-    return 1-np.sum(abs((Normalize(inversMatrix)-Normalize(resMatrix))))/16
+# # Normlize data between 0 to 1.
+# def normlizeToOne(data):
+#     return (data - np.min(data)) / (np.max(data) - np.min(data))
+# # Calculate score from invers translation marix.
+# def calcScore(inversMatrix, resMatrix):
+#     return 1-np.sum(abs((Normalize(inversMatrix)-Normalize(resMatrix))))/16
 
 # Method get the data from global file for POC
 def get_data_global_POC(directory):
@@ -67,6 +68,31 @@ def preprocess_point_cloud(pcd, voxel_size):
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
     return pcd_down, pcd_fpfh
 
+# For pre prossecing the point cloud - compute voxel.
+def preprocess_point_cloud_voxel(pcd, voxel_size):
+    pcd_down = pcd.voxel_down_sample(voxel_size)
+    return pcd_down
+
+def findCorrZeroOne(source, target, distanceThreshold):
+    # prepare list and copy data.
+    listSource = []
+    listTarget = []
+    tragetCopy = np.asarray(copy.deepcopy(target).points)
+    sourceCopy = np.asarray(copy.deepcopy(source).points)
+    
+    # calculate the dist between all points and copy.
+    M = np.asarray(ot.dist(sourceCopy, tragetCopy))
+    M_result = copy.deepcopy(M)
+    for i in range(len(sourceCopy)):
+        for j in range(len(tragetCopy)):
+            if M_result[i,j]<=distanceThreshold:
+                M_result[i,j]=1
+                listSource.append(i)
+                listTarget.append(j)
+            else:
+                M_result[i,j]=0
+    return M_result, listSource, listTarget
+
 ######################################################################
 ##################        RANSAC_ICP_Refernce       ##################
 ######################################################################
@@ -77,12 +103,16 @@ def preprocess_point_cloud(pcd, voxel_size):
 def prepare_dataset(voxel_size, source_path, target_path, trans_init):
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
+    source_down_c = preprocess_point_cloud_voxel(source, voxel_size * 10)
+    target_down_c = preprocess_point_cloud_voxel(target, voxel_size * 10)
+    M_result, listSource, listTarget = findCorrZeroOne(source_down_c, target_down_c, 0.1001)
     draw_registration_result(source, target, np.identity(4), "Target Matching")
     source.transform(trans_init)
+    source_down_c.transform(trans_init)
     draw_registration_result(source, target, np.identity(4), "Problem")
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
-    return source, target, source_down, target_down, source_fpfh, target_fpfh
+    return source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
 
 # Run global regestration by RANSAC
 def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh):
@@ -102,7 +132,6 @@ def refine_registration(source, target, result_ransac):
     distance_threshold = 0.1001
     result = o3d.pipelines.registration.registration_icp(source, target, distance_threshold, result_ransac.transformation, o3d.pipelines.registration.TransformationEstimationPointToPoint(True), o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 1000))
     return result
-
 
 ######################################################################
 ##################  Sinkhorn_RANSAC_ICP_Refernce    ##################
