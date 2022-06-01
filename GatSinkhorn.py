@@ -1,3 +1,4 @@
+from itertools import count
 import torch
 import numpy as np
 import ot
@@ -8,91 +9,108 @@ import torch_geometric.transforms as T
 import torch.nn.functional as F
 
 
-class GAT(torch.nn.Module):
-    def __init__(self):
-        super(GAT, self).__init__()
-        self.dustBin = torch.nn.Parameter(torch.tensor(1.))
-        # self.hid = hid
-        # self.in_head = in_head
-        # self.out_head = out_head
+def normalizeEinsumResult(einsumMatrix, pcda, pcdb):
+    for i in range(einsumMatrix.shape[0]):
+        for j in range(einsumMatrix.shape[1]):
+            einsumMatrix[i, j] = einsumMatrix[i, j] / \
+                (torch.linalg.norm(pcda[i]) * torch.linalg.norm(pcdb[j]))
 
-        # self.conv1 = GATv2Conv(num_features, self.hid,
-        #                        heads=self.in_head, dropout=0.6)
-        # self.conv2 = GATv2Conv(num_features, self.hid,
-        #                        heads=self.in_head, dropout=0.6)
-        # self.conv3 = GATv2Conv(self.hid*self.in_head, num_classes,
-        #                        concat=False, heads=self.out_head, dropout=0.6)
-        # self.sinkhorn = log_optimal_transport
+
+class GAT(torch.nn.Module):
+    def __init__(self, num_features, num_classes, hid=8, in_head=8, out_head=1):
+        super(GAT, self).__init__()
+        self.hid = hid
+        self.in_head = in_head
+        self.out_head = out_head
+        self.dustBin = torch.nn.Parameter(torch.tensor(1.))
+
+        self.conv1 = GATv2Conv(num_features, self.hid,
+                               heads=self.in_head, dropout=0)
+        self.conv2 = GATv2Conv(self.hid*self.in_head,
+                               self.hid, heads=self.in_head, dropout=0)
+        self.conv3 = GATv2Conv(
+            self.hid*self.in_head, num_classes, concat=False, heads=self.out_head, dropout=0)
 
     def forward(self, data, sourceSize, targetSize):
         x, edge_index, edge_index2 = data.x, data.edge_index, data.edge_index2
         ###############################################
-        # print(x)
-        # for i in range(len(x)):
-        #     x[i, :] = (x[i, :] - torch.min(x[i, :])) / \
-        #         (torch.max(x[i, :]) - torch.min(x[i, :]))
-        # print(x)
-        x = (x - torch.min(x)) / (torch.max(x) - torch.min(x))
-        # print("x max: ", x.max(), " x min: ", x.min())
-
-        # for i in range(4):
-        #     x = F.dropout(x, p=0.6, training=self.training)
-        #     x = self.conv1(x, edge_index)
-        #     x = F.elu(x)
-        #     x = F.dropout(x, p=0.6, training=self.training)
-        #     x = self.conv2(x, edge_index2)
-        #     x = F.log_softmax(x, dim=1)
-        # x = self.conv3(x, edge_index)
-        # x = F.log_softmax(x, dim=1)
+        print(edge_index.shape)
+        # x = F.softmax(x, dim=1)
+        for i in range(1):
+            if i == 0:
+                # x = F.dropout(x, p=0.6, training=self.training)
+                x = self.conv1(x, edge_index)
+                # x = F.leaky_relu(x)
+            # else:
+                # x = F.dropout(x, p=0.6, training=self.training)
+                # x = self.conv2(x, edge_index)
+                # x = F.leaky_relu(x)
+            # x = F.dropout(x, p=0.6, training=self.training)
+            x = self.conv2(x, edge_index2)
+        #     # x = F.leaky_relu(x)
+        #     # x = F.softmax(x, dim=1)
+        # x = self.conv3(x, edge_index2)
+        # x = F.leaky_relu(x)
+        x = F.log_softmax(x, dim=1)
 
         problem = x
         ###############################################
 
         source_arr = problem[0:sourceSize, :]
         target_arr = problem[sourceSize: sourceSize + targetSize, :]
+        # target_arr = source_arr
+        source_fpfh_T_tensor = torch.tensor(source_arr.T)  # (33,x)
+        target_fpfh_T_tensor = torch.tensor(target_arr.T)  # (33,y)
 
         ###############################################
-        scores = torch.einsum('dn,dm->nm', source_arr.T, target_arr.T)
-        scores = scores / 33**.5
-        # scores = scores.reshape(1, scores.shape[0], scores.shape[1])
-        # print(scores.shape)
-        # dustBin = torch.nn.Parameter(torch.tensor(1.))
-        # self.register_parameter('dustBin', dustBin)
+        scores = torch.einsum(
+            'dn,dm->nm', source_fpfh_T_tensor, target_fpfh_T_tensor)
+        normalizeEinsumResult(
+            scores, source_fpfh_T_tensor.T, target_fpfh_T_tensor.T)
+        scores = scores.reshape(1, scores.shape[0], scores.shape[1])
+        scores = log_optimal_transport(
+            scores, alpha=self.dustBin, iters=1000)
+        scores_tmp = scores.clone()
+        for i in range(scores.shape[1]-1):
+            scores_tmp[0, i, :scores_tmp.shape[2]-1] = scores_tmp[0, i,
+                                                                  :scores_tmp.shape[2]-1]-torch.max(scores_tmp[0, i, :scores_tmp.shape[2]-1])
 
-        # Print loss matrix shape
-        # print("Loss matrix scores shape : ", scores.size())
+        print("self.dustBin / alphe =   ", self.dustBin)
 
-        num_iter = 1000
-        scores = U.sinkhorn(scores, eps=1e-9, maxiters=1000)
+        # Get the matches with score above "match_threshold".
+        max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
+        indices0, indices1 = max0.indices, max1.indices
+        mutual0 = arange_like(indices0, 1)[
+            None] == indices1.gather(1, indices0)
+        mutual1 = arange_like(indices1, 1)[
+            None] == indices0.gather(1, indices1)
+        zero = scores.new_tensor(0)
+        mscores0 = torch.where(mutual0, max0.values.exp(), zero)
+        mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
+        valid0 = mutual0
+        valid1 = mutual1 & valid0.gather(1, indices1)
+        indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
+        indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
+        howMachMinusOne = 0
+        howMachMatching = 0
+        test = 0
+        counter = -1
+        print(indices0.shape)
+        for i in indices0[0]:
+            counter = counter+1
+            if i == -1:
+                howMachMinusOne = howMachMinusOne+1
+            else:
+                if(i == counter):
+                    test = test+1
+                howMachMatching = howMachMatching+1
+                # print("indices1[i], "  ", sm[i]", indices1[0, i], "  ", i)
+                # print("test score matrix : ", sm[indices1[0, i], i])
 
-        # # Get the matches with score above "match_threshold".
-        # max0, max1 = scores[:-1, :-1].max(1), scores[:-1, :-1].max(0)
-        # indices0, indices1 = max0.indices, max1.indices
-        # mutual0 = arange_like(indices0, 1)[
-        #     None] == indices1.gather(1, indices0)
-        # mutual1 = arange_like(indices1, 1)[
-        #     None] == indices0.gather(1, indices1)
-        # # print("\n\n################\n\n")
-        # # print("\nmax0 :\n", max0)
-        # # print("\n\n################\n\n")
-        # # print("\n\n################\n\n")
-        # # print("\nmutual0 :\n", mutual0)
-        # # print("\n\n################\n\n")
-        # zero = scores.new_tensor(0)
-        # mscores0 = torch.where(mutual0, max0.values.exp(), zero)
-        # mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
-        # valid0 = mutual0 & (mscores0 > 0)
-        # valid1 = mutual1 & valid0.gather(1, indices1)
-        # indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
-        # indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
-        # # print("\n\n################\n\n")
-        # # print("\nmscores0 :\n", mscores0)
-        # # print("\n\n################\n\n")
-        # # print("\n\n################\n\n")
-        # # print("\nindices0 :\n", indices0)
-        # # print("\n\n################\n\n")
-
-        return scores, None, None
+        print("NUM MATCHING: ", howMachMatching)
+        print("NUM OF MINUS ONE: ", howMachMinusOne)
+        print("NUM OF TEST: ", test)
+        return scores, indices0, indices1
 
 
 def log_sinkhorn_iterations_t(Z, log_mu, log_nu, iters: int):

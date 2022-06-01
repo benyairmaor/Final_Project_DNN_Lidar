@@ -152,17 +152,16 @@ def draw_registration_result(source, target, transformation):
 
 
 ############################### For voxel and compute FPFH ###############################
-def preprocess_point_cloud(source, target, voxel_size):
+def preprocess_point_cloud(source, target, voxel_size, M):
 
     radius_normal = 5*voxel_size
     radius_feature = 10*voxel_size
-
     # Calculate normals
+    # source.transform(M)
     source.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(
         radius=radius_normal, max_nn=250))
     target.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(
         radius=radius_normal, max_nn=250))
-
     # Calculate FPFHs
     pcd_fpfh_source = o3d.pipelines.registration.compute_fpfh_feature(
         source, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
@@ -174,7 +173,7 @@ def preprocess_point_cloud(source, target, voxel_size):
 
 VERBOSE = True
 VISUALIZATION = False
-voxel_size = 1
+voxel_size = 3
 device = 'cpu'
 
 
@@ -213,7 +212,7 @@ def preprocessing(source, target, overlap, M):
 
     # Calculate FPFH
     source_fpfh, target_fpfh = preprocess_point_cloud(
-        source_down.transform(M), target_down, voxel_size)
+        source_down, target_down, voxel_size, M)
 
     if VERBOSE:
         print("\nfpfh finished")
@@ -296,7 +295,7 @@ def preprocessing(source, target, overlap, M):
                 edge_index_cross[1].append(j)
     edge_index_self_ = torch.tensor(edge_index_self, dtype=torch.long)
     edge_index_cross_ = torch.tensor(edge_index_cross, dtype=torch.long)
-    return fpfhSourceTargetConcatenate, edge_index_self_, edge_index_cross_, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx
+    return fpfhSourceTargetConcatenate, edge_index_self_, edge_index_cross_, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx, source_down, target_down
 
 
 def log_sinkhorn_iterations(Z, log_mu, log_nu, iters: int):

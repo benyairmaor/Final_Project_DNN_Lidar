@@ -91,10 +91,11 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init):
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
     draw_registration_result(source, target, np.identity(4), "Target Matching")
-    source.transform(trans_init)
-    draw_registration_result(source, target, np.identity(4), "Problem")
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
+    source_down.transform(trans_init)
+    draw_registration_result(source_down, target_down,
+                             np.identity(4), "Problem")
     return source, target, source_down, target_down, source_fpfh, target_fpfh
 
 # Run global regestration by RANSAC
