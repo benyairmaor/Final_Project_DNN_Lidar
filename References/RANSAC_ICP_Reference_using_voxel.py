@@ -139,7 +139,7 @@ if __name__ == '__main__':
                 result_icp.transformation[:3, 3:] - np.linalg.inv(translation_M[i])[:3, 3:])
 
             # Check how many problems solved with score above 70%
-            if rotaition_score > 1 and translation_score > 1:
+            if rotaition_score < 1 and translation_score < 1:
                 matches_matrix_dist[iter_dataset] += 1
                 problems_idx_solved_matrix_dist[iter_dataset].append(i)
             else:
