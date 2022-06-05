@@ -19,7 +19,7 @@ import ot
 # Method get the data from global file for POC
 def get_data_global_POC(directory):
     headers = ['id', 'source', 'target', 'overlap', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12']
-    read_file = pd.read_csv('Datasets/eth/' + directory + '_global.txt', sep=" ", header=0, names=headers)
+    read_file = pd.read_csv('Datasets/eth/' + directory + '_global_POC.txt', sep=" ", header=0, names=headers)
     read_file.to_csv('Datasets/eth/' + directory + '_global.csv', sep=',')
     read_file = pd.DataFrame(read_file, columns=headers)
     
@@ -100,16 +100,18 @@ def findCorrZeroOne(source, target, distanceThreshold):
 
 # For loading the point clouds : return -
 # (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
-def prepare_dataset(voxel_size, source_path, target_path, trans_init):
+def prepare_dataset(voxel_size, source_path, target_path, trans_init, VISUALIZATION):
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
     source_down_c = preprocess_point_cloud_voxel(source, voxel_size * 10)
     target_down_c = preprocess_point_cloud_voxel(target, voxel_size * 10)
     M_result, listSource, listTarget = findCorrZeroOne(source_down_c, target_down_c, 0.1001)
-    draw_registration_result(source, target, np.identity(4), "Target Matching")
+    if VISUALIZATION:
+        draw_registration_result(source, target, np.identity(4), "Target Matching")
     source.transform(trans_init)
     source_down_c.transform(trans_init)
-    draw_registration_result(source, target, np.identity(4), "Problem")
+    if VISUALIZATION:
+        draw_registration_result(source, target, np.identity(4), "Problem")
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
     return source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
