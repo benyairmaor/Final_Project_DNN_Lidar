@@ -50,17 +50,16 @@ def preprocess_point_cloud_voxel(pcd, voxel_size):
 
 
 # For pre prossecing the point cloud - make voxel and compute FPFH.
-def preprocess_point_cloud_fartest_point(pcd, voxel_size):
+def preprocess_point_cloud_keypoint(pcd, voxel_size):
     radius_normal = voxel_size * 5
     radius_feature = voxel_size * 10
-    pcd_down = pcd.voxel_down_sample(voxel_size)
-    pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
-    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
-    return pcd_down, pcd_fpfh
+    pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
+    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
+    return pcd_fpfh
 
 
 # For pre prossecing the point cloud - make voxel and compute FPFH.
-def preprocess_point_cloud_keypoint(pcd, voxel_size):
+def preprocess_point_cloud_fartest_point(pcd, voxel_size):
     radius_normal = voxel_size * 5
     radius_feature = voxel_size * 10
     pcd_down = pcd.voxel_down_sample(voxel_size)
@@ -99,29 +98,104 @@ def findCorrZeroOne(source, target, distanceThreshold):
 # For loading the point clouds : return -
 # (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
 def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION):
+    
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
-    source_down_c = preprocess_point_cloud_for_test(source, voxel_size * 10)
-    target_down_c =  preprocess_point_cloud_for_test(target, voxel_size * 10)
+    
+    source_down_c = preprocess_point_cloud_for_test(source, voxel_size * 4)
+    target_down_c =  preprocess_point_cloud_for_test(target, voxel_size * 4)
     M_result, listSource, listTarget = findCorrZeroOne(source_down_c, target_down_c, 0.1001)
+    
     if VISUALIZATION:
         draw_registration_result(source, target, np.identity(4), "Target Matching")
+    
     source.transform(trans_init)
     source_down_c.transform(trans_init)
+    
     if VISUALIZATION:
-        draw_registration_result(source, target, np.identity(4), "Problem")
+        draw_registration_result(source, target, np.identity(4), "Problem")        
+        
     if method == "voxel":
         source_down, source_fpfh = preprocess_point_cloud_voxel(source, voxel_size)
         target_down, target_fpfh = preprocess_point_cloud_voxel(target, voxel_size)
-    if method == "keypoint":
-        source_down, source_fpfh = preprocess_point_cloud_keypoint(source, voxel_size)
-        target_down, target_fpfh = preprocess_point_cloud_keypoint(target, voxel_size)
+        
+        return source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
+
+    if method == "keypoints":
+        source_down = preprocess_point_cloud_for_test(source, voxel_size)
+        target_down =  preprocess_point_cloud_for_test(target, voxel_size) 
+        
+        # Source and target keypoint by iss method  
+        source_key = o3d.geometry.keypoint.compute_iss_keypoints(source, gamma_21=0.27, gamma_32=0.12)
+        target_key = o3d.geometry.keypoint.compute_iss_keypoints(target, gamma_21=0.27, gamma_32=0.12)
+                
+        # Source and target keypoint correspondence
+        source_keyPointArr = np.asarray(source_key.points)
+        target_keyPointArr = np.asarray(target_key.points)
+        
+        # Find the keypoints from voxel
+        source_VoxelIdx, target_VoxelIdx, source_down_key, target_down_key = findVoxelCorrIdx(source_down.points, target_down.points, source_keyPointArr, target_keyPointArr)
+            
+        source_fpfh = preprocess_point_cloud_keypoint(source_down_key, voxel_size)
+        target_fpfh = preprocess_point_cloud_keypoint(target_down_key, voxel_size)
+        
+        # source_fpfh_arr = np.asarray(source_fpfh.data)
+        # target_fpfh_arr = np.asarray(target_fpfh.data)
+        # source_fpfh_arr = source_fpfh_arr[:, source_VoxelIdx]
+        # target_fpfh_arr = target_fpfh_arr[:, target_VoxelIdx]
+        # source_fpfh_n = o3d.pipelines.registration.Feature()
+        # target_fpfh_n = o3d.pipelines.registration.Feature()
+        # source_fpfh_n.data = source_fpfh_arr
+        # target_fpfh_n.data = target_fpfh_arr
+    
+        return source, target, source_down_key, target_down_key, source_key, target_key, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
+
     if method == "fartest_point":
         source_down, source_fpfh = preprocess_point_cloud_fartest_point(source, voxel_size)
         target_down, target_fpfh = preprocess_point_cloud_fartest_point(target, voxel_size)
-    return source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
+        return source
 
 
+def findVoxelCorrIdx(realS, realT, keyS, keyT):
+    
+    realSidx = []
+    realTidx = []
+    realSarr = np.asarray(copy.deepcopy(realS))
+    realTarr = np.asarray(copy.deepcopy(realT))
+    
+    # For each keypoint look for in the voxel - for source
+    for key in keyS:
+        flag = 0
+        for i in range((realSarr.shape[0])):
+            if key[0] == realSarr[i, 0] and key[1] == realSarr[i, 1] and key[2] == realSarr[i, 2]:
+                realSidx.append(i)
+                flag = 1
+                break
+        if flag == 0:
+            arr_to_add = np.array([key[0], key[1], key[2]])
+            realSarr = np.vstack([realSarr, arr_to_add])
+            realSidx.append(realSarr.shape[0] - 1)
+    
+    # For each keypoint look for in the voxel - for target
+    for key in keyT:
+        flag = 0
+        for i in range((realTarr.shape[0])):
+            if key[0] == realTarr[i, 0] and key[1] == realTarr[i, 1] and key[2] == realTarr[i, 2]:
+                realTidx.append(i)
+                flag = 1
+                break
+        if flag == 0:
+            arr_to_add = np.array([key[0], key[1], key[2]])
+            realTarr = np.vstack([realTarr, arr_to_add])
+            realTidx.append(realTarr.shape[0]-1)
+
+    pcdA = o3d.geometry.PointCloud()
+    pcdB = o3d.geometry.PointCloud()
+    pcdA.points = o3d.utility.Vector3dVector(realSarr)
+    pcdB.points = o3d.utility.Vector3dVector(realTarr)
+    
+    return realSidx, realTidx, pcdA, pcdB
+    
 ######################################################################
 ##################        RANSAC_ICP_Refernce       ##################
 ######################################################################

@@ -1,9 +1,8 @@
-from sre_parse import Verbose
 import numpy as np
 import UtilitiesReference as UR
 import ot
 
-VISUALIZATION = False
+VISUALIZATION = True
 VERBOSE = True
 
 if __name__ == '__main__':
@@ -79,7 +78,7 @@ if __name__ == '__main__':
             voxel_size = 0.1  # means 5cm for this dataset ?
 
             # Prepare data set by compute FPFH.
-            source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
+            source, target, source_down, target_down, source_key, target_key, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
                 voxel_size, source_path, target_path, translation_M[i], "keypoints", VISUALIZATION)
 
             # Execute global registration by RANSAC and FPFH , print the result and the correspondence point set .
