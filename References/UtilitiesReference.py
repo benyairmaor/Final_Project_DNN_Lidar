@@ -4,23 +4,19 @@ import copy
 import pandas as pd
 import ot
 
-
 ######################################################################
 ##################         General Functions        ##################
 ######################################################################
 
-# # Normlize data between 0 to 1.
-# def normlizeToOne(data):
-#     return (data - np.min(data)) / (np.max(data) - np.min(data))
-# # Calculate score from invers translation marix.
-# def calcScore(inversMatrix, resMatrix):
-#     return 1-np.sum(abs((Normalize(inversMatrix)-Normalize(resMatrix))))/16
-
-# Method get the data from global file for POC
-def get_data_global_POC(directory):
+# Method get the data from global file or POC file
+def get_data_global(directory, POC):
     headers = ['id', 'source', 'target', 'overlap', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12']
-    read_file = pd.read_csv('Datasets/eth/' + directory + '_global_POC.txt', sep=" ", header=0, names=headers)
-    read_file.to_csv('Datasets/eth/' + directory + '_global.csv', sep=',')
+    if POC:
+        read_file = pd.read_csv('Datasets/eth/' + directory + '_global_POC.txt', sep=" ", header=0, names=headers)
+        read_file.to_csv('Datasets/eth/' + directory + '_global_POC.csv', sep=',')
+    else:
+        read_file = pd.read_csv('Datasets/eth/' + directory + '_global.txt', sep=" ", header=0, names=headers)
+        read_file.to_csv('Datasets/eth/' + directory + '_global.csv', sep=',')
     read_file = pd.DataFrame(read_file, columns=headers)
     
     M = np.zeros((len(read_file), 4, 4))
@@ -31,23 +27,7 @@ def get_data_global_POC(directory):
             M[row, idx_row, idx_col] = read_file['t' + str(i)][row]
         M[row, 3, :] = [0, 0, 0, 1]
     return read_file['source'], read_file['target'], read_file['overlap'], M
-
-# Method get the data 
-def get_data_global(directory):
-    headers = ['id', 'source', 'target', 'overlap', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12']
-    read_file = pd.read_csv('Datasets/eth/' + directory + '_global.txt', sep=" ", header=0, names=headers)
-    read_file.to_csv('Datasets/eth/' + directory + '_global.csv', sep=',')
-    read_file = pd.DataFrame(read_file, columns=headers)
     
-    M = np.zeros((len(read_file), 4, 4))
-    for row in range(len(read_file)):
-        for i in range(1, 13):
-            idx_row = int((i - 1) / 4)
-            idx_col = (i - 1) % 4
-            M[row, idx_row, idx_col] = read_file['t' + str(i)][row]
-        M[row, 3, :] = [0, 0, 0, 1]
-    return read_file['source'], read_file['target'], read_file['overlap'], M
-
 
 # For draw source & target point cloud.
 def draw_registration_result(source, target, transformation, title):
@@ -60,7 +40,7 @@ def draw_registration_result(source, target, transformation, title):
 
 
 # For pre prossecing the point cloud - make voxel and compute FPFH.
-def preprocess_point_cloud(pcd, voxel_size):
+def preprocess_point_cloud_voxel(pcd, voxel_size):
     radius_normal = voxel_size * 5
     radius_feature = voxel_size * 10
     pcd_down = pcd.voxel_down_sample(voxel_size)
@@ -68,10 +48,32 @@ def preprocess_point_cloud(pcd, voxel_size):
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
     return pcd_down, pcd_fpfh
 
+
+# For pre prossecing the point cloud - make voxel and compute FPFH.
+def preprocess_point_cloud_fartest_point(pcd, voxel_size):
+    radius_normal = voxel_size * 5
+    radius_feature = voxel_size * 10
+    pcd_down = pcd.voxel_down_sample(voxel_size)
+    pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
+    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
+    return pcd_down, pcd_fpfh
+
+
+# For pre prossecing the point cloud - make voxel and compute FPFH.
+def preprocess_point_cloud_keypoint(pcd, voxel_size):
+    radius_normal = voxel_size * 5
+    radius_feature = voxel_size * 10
+    pcd_down = pcd.voxel_down_sample(voxel_size)
+    pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
+    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
+    return pcd_down, pcd_fpfh
+
+
 # For pre prossecing the point cloud - compute voxel.
-def preprocess_point_cloud_voxel(pcd, voxel_size):
+def  preprocess_point_cloud_for_test(pcd, voxel_size):
     pcd_down = pcd.voxel_down_sample(voxel_size)
     return pcd_down
+
 
 def findCorrZeroOne(source, target, distanceThreshold):
     # prepare list and copy data.
@@ -93,18 +95,14 @@ def findCorrZeroOne(source, target, distanceThreshold):
                 M_result[i,j]=0
     return M_result, listSource, listTarget
 
-######################################################################
-##################        RANSAC_ICP_Refernce       ##################
-######################################################################
-
 
 # For loading the point clouds : return -
 # (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
-def prepare_dataset(voxel_size, source_path, target_path, trans_init, VISUALIZATION):
+def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION):
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
-    source_down_c = preprocess_point_cloud_voxel(source, voxel_size * 10)
-    target_down_c = preprocess_point_cloud_voxel(target, voxel_size * 10)
+    source_down_c = preprocess_point_cloud_for_test(source, voxel_size * 10)
+    target_down_c =  preprocess_point_cloud_for_test(target, voxel_size * 10)
     M_result, listSource, listTarget = findCorrZeroOne(source_down_c, target_down_c, 0.1001)
     if VISUALIZATION:
         draw_registration_result(source, target, np.identity(4), "Target Matching")
@@ -112,9 +110,21 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init, VISUALIZAT
     source_down_c.transform(trans_init)
     if VISUALIZATION:
         draw_registration_result(source, target, np.identity(4), "Problem")
-    source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
-    target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
+    if method == "voxel":
+        source_down, source_fpfh = preprocess_point_cloud_voxel(source, voxel_size)
+        target_down, target_fpfh = preprocess_point_cloud_voxel(target, voxel_size)
+    if method == "keypoint":
+        source_down, source_fpfh = preprocess_point_cloud_keypoint(source, voxel_size)
+        target_down, target_fpfh = preprocess_point_cloud_keypoint(target, voxel_size)
+    if method == "fartest_point":
+        source_down, source_fpfh = preprocess_point_cloud_fartest_point(source, voxel_size)
+        target_down, target_fpfh = preprocess_point_cloud_fartest_point(target, voxel_size)
     return source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
+
+
+######################################################################
+##################        RANSAC_ICP_Refernce       ##################
+######################################################################
 
 # Run global regestration by RANSAC
 def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh):
@@ -138,29 +148,6 @@ def refine_registration(source, target, result_ransac):
 ######################################################################
 ##################  Sinkhorn_RANSAC_ICP_Refernce    ##################
 ######################################################################
-
-# For pre prossecing the point cloud - make voxel and compute FPFH.
-def preprocess_point_cloud_sinkhorn_ransac(pcd, voxel_size):
-    pcd_down = pcd.voxel_down_sample(voxel_size)
-    radius_normal = voxel_size * 5
-    pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
-    radius_feature = voxel_size * 10
-    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
-    return pcd_down, pcd_fpfh
-
-
-# For loading the point clouds : return -
-# (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
-def prepare_dataset_sinkhorn_ransac(voxel_size, source_path, target_path, trans_init):
-    source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
-    target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
-    draw_registration_result(source, target, np.identity(4), "Target Matching")
-    source.transform(trans_init)
-    draw_registration_result(source, target, np.identity(4), "Problem")
-    source_down, source_fpfh = preprocess_point_cloud_sinkhorn_ransac(source, voxel_size)
-    target_down, target_fpfh = preprocess_point_cloud_sinkhorn_ransac(target, voxel_size)
-    return source, target, source_down, target_down, source_fpfh, target_fpfh
-
 
 # Run global regestration by RANSAC
 def execute_global_registration_with_corr(source_down, target_down, corr):

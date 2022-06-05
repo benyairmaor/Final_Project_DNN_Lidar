@@ -41,9 +41,9 @@ if __name__ == '__main__':
 
     for directory in directories:
 
-        # Get one problem
-        sources, targets, overlaps, translation_M = UR.get_data_global_POC(
-            directory)
+        # Get all problem
+        sources, targets, overlaps, translation_M = UR.get_data_global(
+            directory, True)
 
         # Initialization parameters per dataset
         results.append([])
@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i], VISUALIZATION)
+                voxel_size, source_path, target_path, translation_M[i], "keypoints", VISUALIZATION)
 
             # Execute global registration by RANSAC and FPFH , print the result and the correspondence point set .
             result_ransac = UR.execute_global_registration(
@@ -208,23 +208,23 @@ if __name__ == '__main__':
         print()
         for i in range(len(avg_result_datasets_corr_matches)):
             print(avg_result_datasets_corr_matches[i][0], '\'s fitness score: ', avg_result_datasets_corr_matches[i]
-                  [1], 'with ', matches_corr_matches[i], 'problems solved over 70% from ', size_dataset[i])
+                  [1], 'with ', matches_corr_matches[i], 'problems solved with score over 70% from ', size_dataset[i])
             print("Problem indexes solved:",
                   problems_idx_solved_corr_matches[i])
             print("Problem indexes unsolved:",
                   problems_idx_unsolved_corr_matches[i])
             print(avg_result_datasets_overlap[i][0], '\'s overlap score: ', avg_result_datasets_overlap[i]
-                  [1], 'with ', matches_overlap[i], 'problems solved over 70% from ', size_dataset[i])
+                  [1], 'with ', matches_overlap[i], 'problems solved with score over 70% from ', size_dataset[i])
             print("Problem indexes solved:", problems_idx_solved_overlap[i])
             print("Problem indexes unsolved:",
                   problems_idx_unsolved_overlap[i])
             print(avg_result_datasets_matrix_dist[i][0], '\'s matrix distance score: ', avg_result_datasets_matrix_dist[i]
-                  [1], avg_result_datasets_matrix_dist[i][2], 'with ', matches_matrix_dist[i], 'problems solved over 70% from ', size_dataset[i])
+                  [1], avg_result_datasets_matrix_dist[i][2], 'with ', matches_matrix_dist[i], 'problems solved with score under 1 from ', size_dataset[i])
             print("Problem indexes solved:",
                   problems_idx_solved_matrix_dist[i])
             print("Problem indexes unsolved:",
                   problems_idx_unsolved_matrix_dist[i])
-        print()
+            print()
         print("total avarage (fitness) = ", total_avg_corr_matches)
         print("total avarage (overlap) = ", total_avg_overlap)
         print("total avarage (matrix distance) = ",
