@@ -203,7 +203,7 @@ if __name__ == '__main__':
     total_avg_matrix_dist_translation = score_all_datasets_matrix_dist_translation / \
         len(avg_result_datasets_matrix_dist)
 
-   if VERBOSE:
+    if VERBOSE:
         print()
         for i in range(len(avg_result_datasets_corr_matches)):
             print(avg_result_datasets_corr_matches[i][0], '\'s fitness score: ', avg_result_datasets_corr_matches[i]
