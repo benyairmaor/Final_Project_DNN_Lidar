@@ -140,16 +140,6 @@ if __name__ == '__main__':
                 plt.title(directories[y] + " Uncorrect - overlap per farthest")
 
             plt.show()
-            plt.plot(farthests_size, scores_overlap[x][y], color='green')
-            plt.xlabel('farthests size')
-            plt.ylabel('scores (overlap)')
-
-            if x == 0:
-                plt.title(directories[y] + " Correct - overlap per farthest")
-            else:
-                plt.title(directories[y] + " Uncorrect - overlap per farthest")
-
-            plt.show()
 
             plt.plot(
                 farthests_size, scores_matrix_distance_rotation[x][y], color='green')
