@@ -3,6 +3,8 @@ import open3d as o3d
 import copy
 import pandas as pd
 import ot
+import torch
+from dgl.geometry import farthest_point_sampler
 
 ######################################################################
 ##################         General Functions        ##################
@@ -59,10 +61,10 @@ def preprocess_point_cloud_keypoint(pcd, voxel_size):
 
 
 # For pre prossecing the point cloud - make voxel and compute FPFH.
-def preprocess_point_cloud_fartest_point(pcd, voxel_size):
+def preprocess_point_cloud_fartest_point(pcd,voxel_size):
     radius_normal = voxel_size * 5
     radius_feature = voxel_size * 10
-    pcd_down = pcd.voxel_down_sample(voxel_size)
+    pcd_down = farthest_point(pcd, int(0.03 * np.asarray(pcd.points).shape[0]))
     pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
     return pcd_down, pcd_fpfh
@@ -153,7 +155,7 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VI
     if method == "fartest_point":
         source_down, source_fpfh = preprocess_point_cloud_fartest_point(source, voxel_size)
         target_down, target_fpfh = preprocess_point_cloud_fartest_point(target, voxel_size)
-        return source
+        return source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
 
 
 def findVoxelCorrIdx(realS, realT, keyS, keyT):
@@ -247,6 +249,13 @@ def refine_registration_sinkhorn_ransac(source, target, result_ransac):
         criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=1200))
     return result
 
+def farthest_point(pcd, numOfPoints):
+    pcdArr = np.asarray(pcd.points)
+    point_idx = farthest_point_sampler(torch.reshape(torch.tensor(pcdArr), (1, pcdArr.shape[0], pcdArr.shape[1])), numOfPoints, 0)
+    pcdResArr = pcdArr[point_idx[0]]
+    pcdRes = o3d.geometry.PointCloud()
+    pcdRes.points = o3d.utility.Vector3dVector(pcdResArr)
+    return pcdRes
 
 ######################################################################
 ##################       Sinkhorn_SVD_Refernce      ##################
