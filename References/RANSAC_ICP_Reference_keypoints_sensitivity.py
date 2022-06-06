@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
                 # Prepare data set by compute FPFH.
                 source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                    voxel_size, source_path, target_path, translation_M[i], "keypoints", VISUALIZATION, gamma_21=gamma_21_32[0], gamma_32=gamma_21_32[1])
+                    voxel_size, source_path, target_path, translation_M[i], "keypoints", VISUALIZATION, gamma_21=gamma_21_32s[gamma_21_32][0], gamma_32=gamma_21_32s[gamma_21_32][1])
 
                 # Execute global registration by RANSAC and FPFH , print the result and the correspondence point set .
                 result_ransac = UR.execute_global_registration(
