@@ -10,9 +10,8 @@ if __name__ == '__main__':
 
     # Initialization parameters for model
 
-    directories = ['apartment']
-    # , 'hauptgebaude', 'wood_autumn',
-    #    'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
+    directories = ['apartment', 'hauptgebaude', 'wood_autumn',
+                   'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
     idx_s = [3, 3, 7, 5, 2, 9, 8, 6]
     idx_f = [4, 1, -1, 1, 0, 4, -1, 2]
     voxels_size = np.array([0.1, 0.2, 0.5, 1, 1.5, 2, 5])
@@ -122,10 +121,10 @@ if __name__ == '__main__':
             # displaying the title
             if x == 0:
                 plt.title(directories[y] +
-                          "Correct solution - fitness per voxel")
+                          " Correct solution - fitness per voxel")
             else:
                 plt.title(directories[y] +
-                          "Uncorrect solution - fitness per voxel")
+                          " Uncorrect solution - fitness per voxel")
 
             plt.show()
 
@@ -134,9 +133,9 @@ if __name__ == '__main__':
             plt.ylabel('scores (overlap)')
 
             if x == 0:
-                plt.title(directories[y] + "Correct - overlap per voxel")
+                plt.title(directories[y] + " Correct - overlap per voxel")
             else:
-                plt.title(directories[y] + "Uncorrect - overlap per voxel")
+                plt.title(directories[y] + " Uncorrect - overlap per voxel")
 
             plt.show()
             plt.plot(voxels_size, scores_overlap[x][y], color='green')
@@ -144,9 +143,9 @@ if __name__ == '__main__':
             plt.ylabel('scores (overlap)')
 
             if x == 0:
-                plt.title(directories[y] + "Correct - overlap per voxel")
+                plt.title(directories[y] + " Correct - overlap per voxel")
             else:
-                plt.title(directories[y] + "Uncorrect - overlap per voxel")
+                plt.title(directories[y] + " Uncorrect - overlap per voxel")
 
             plt.show()
 
@@ -157,10 +156,10 @@ if __name__ == '__main__':
 
             if x == 0:
                 plt.title(
-                    directories[y] + "Correct - matrix distance rotation per voxel")
+                    directories[y] + " Correct - matrix distance rotation per voxel")
             else:
                 plt.title(
-                    directories[y] + "Uncorrect - matrix distance rotation per voxel")
+                    directories[y] + " Uncorrect - matrix distance rotation per voxel")
 
             plt.show()
 
@@ -171,9 +170,9 @@ if __name__ == '__main__':
 
             if x == 0:
                 plt.title(
-                    directories[y] + "Correct - matrix distance translation per voxel")
+                    directories[y] + " Correct - matrix distance translation per voxel")
             else:
                 plt.title(
-                    directories[y] + "Uncorrect - matrix distance translation per voxel")
+                    directories[y] + " Uncorrect - matrix distance translation per voxel")
 
             plt.show()
