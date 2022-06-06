@@ -61,10 +61,10 @@ def preprocess_point_cloud_keypoint(pcd, voxel_size):
 
 
 # For pre prossecing the point cloud - make voxel and compute FPFH.
-def preprocess_point_cloud_fartest_point(pcd,voxel_size):
+def preprocess_point_cloud_fartest_point(pcd,voxel_size,farthest_size):
     radius_normal = voxel_size * 5
     radius_feature = voxel_size * 10
-    pcd_down = farthest_point(pcd, int(0.03 * np.asarray(pcd.points).shape[0]))
+    pcd_down = farthest_point(pcd, int(farthest_size * np.asarray(pcd.points).shape[0]))
     pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
     return pcd_down, pcd_fpfh
@@ -99,7 +99,7 @@ def findCorrZeroOne(source, target, distanceThreshold):
 
 # For loading the point clouds : return -
 # (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
-def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, gamma_21=0.27, gamma_32=0.12):
+def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, farthest_size=0.03, gamma_21=0.27, gamma_32=0.12):
     
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
@@ -153,8 +153,8 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VI
         return source, target, source_down_key, target_down_key, source_key, target_key, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
 
     if method == "fartest_point":
-        source_down, source_fpfh = preprocess_point_cloud_fartest_point(source, voxel_size)
-        target_down, target_fpfh = preprocess_point_cloud_fartest_point(target, voxel_size)
+        source_down, source_fpfh = preprocess_point_cloud_fartest_point(source, voxel_size,farthest_size)
+        target_down, target_fpfh = preprocess_point_cloud_fartest_point(target, voxel_size,farthest_size)
         return source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
 
 
