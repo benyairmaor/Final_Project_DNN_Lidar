@@ -47,7 +47,7 @@ if __name__ == '__main__':
                     i = idx_s[iter_dataset]
                 else:
                     i = idx_f[iter_dataset]
-                if voxels_size[voxel_size] == -1:
+                if idx_s == -1 or idx_f == -1:
                     break
 
                 # Save path for source & target pcd.
@@ -128,16 +128,6 @@ if __name__ == '__main__':
 
             plt.show()
 
-            plt.plot(voxels_size, scores_overlap[x][y], color='green')
-            plt.xlabel('voxels size')
-            plt.ylabel('scores (overlap)')
-
-            if x == 0:
-                plt.title(directories[y] + " Correct - overlap per voxel")
-            else:
-                plt.title(directories[y] + " Uncorrect - overlap per voxel")
-
-            plt.show()
             plt.plot(voxels_size, scores_overlap[x][y], color='green')
             plt.xlabel('voxels size')
             plt.ylabel('scores (overlap)')

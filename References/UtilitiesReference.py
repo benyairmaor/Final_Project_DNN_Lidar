@@ -99,7 +99,7 @@ def findCorrZeroOne(source, target, distanceThreshold):
 
 # For loading the point clouds : return -
 # (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
-def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION):
+def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, gamma_21=0.27, gamma_32=0.12):
     
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
@@ -128,8 +128,8 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VI
         target_down =  preprocess_point_cloud_for_test(target, voxel_size) 
         
         # Source and target keypoint by iss method  
-        source_key = o3d.geometry.keypoint.compute_iss_keypoints(source, gamma_21=0.27, gamma_32=0.12)
-        target_key = o3d.geometry.keypoint.compute_iss_keypoints(target, gamma_21=0.27, gamma_32=0.12)
+        source_key = o3d.geometry.keypoint.compute_iss_keypoints(source, gamma_21=gamma_21, gamma_32=gamma_32)
+        target_key = o3d.geometry.keypoint.compute_iss_keypoints(target, gamma_21=gamma_21, gamma_32=gamma_32)
                 
         # Source and target keypoint correspondence
         source_keyPointArr = np.asarray(source_key.points)
