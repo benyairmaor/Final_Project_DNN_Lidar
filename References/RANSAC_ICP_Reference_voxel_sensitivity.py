@@ -29,7 +29,7 @@ if __name__ == '__main__':
     score_all_datasets_matrix_dist_rotation = 0
 
     for directory in directories:
-
+        print(directory)
         # Get all problem
         sources, targets, overlaps, translation_M = UR.get_data_global(
             directory, True)
@@ -43,11 +43,12 @@ if __name__ == '__main__':
 
         for j in range(2):
             for voxel_size in range(len(voxels_size)):
+                print(j, voxel_size, '/', len(voxels_size))
                 if j == 0:
                     i = idx_s[iter_dataset]
                 else:
                     i = idx_f[iter_dataset]
-                if idx_s == -1 or idx_f == -1:
+                if i == -1:
                     break
 
                 # Save path for source & target pcd.

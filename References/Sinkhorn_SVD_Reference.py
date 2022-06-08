@@ -5,7 +5,7 @@ import ot
 import UtilitiesReference as UR
 
 if __name__ == '__main__':
-    
+
     directories = ['apartment', 'hauptgebaude', 'wood_autumn', 'gazebo_summer', 'gazebo_winter',
                    'wood_summer', 'stairs', 'plain']
     results = []
@@ -14,11 +14,13 @@ if __name__ == '__main__':
     sum = 0
     sum_datasets = 0
     for directory in directories:
-        sources, targets, overlaps, translation_M = UR.get_data_global(directory)
+        sources, targets, overlaps, translation_M = UR.get_data_global(
+            directory)
         results.append([])
         sum = 0
         for i in range(len(sources)):
-            print("directory:" + directory + ", iter:" + str(i + 1) + "/" + str(len(sources)))
+            print("directory:" + directory + ", iter:" +
+                  str(i + 1) + "/" + str(len(sources)))
             # Save path for source & target pcd.
             source_path = 'Datasets/eth/' + directory + '/' + sources[i]
             target_path = 'Datasets/eth/' + directory + '/' + targets[i]
@@ -27,7 +29,8 @@ if __name__ == '__main__':
             voxel_size = 0.2  # means voxel_size-cm for this dataset.
 
             # Prepare data set by compute FPFH.
-            source, target, source_down, target_down, source_fpfh, target_fpfh = UR.prepare_dataset(voxel_size, source_path, target_path, translation_M[i])
+            source, target, source_down, target_down, source_fpfh, target_fpfh = UR.prepare_dataset(
+                voxel_size, source_path, target_path, translation_M[i])
 
             # Prepare source weight for sinkhorn with dust bin.
             source_arr = np.asarray(source_fpfh.data).T
@@ -40,9 +43,9 @@ if __name__ == '__main__':
 
             # Print weights and shapes of a and b weight vectors.
             print("source FPFH shape: ", source_arr.shape,
-                "\ntarget FPFH shape: ", target_arr.shape)
+                  "\ntarget FPFH shape: ", target_arr.shape)
             print("source weight shape: ", s.shape,
-                "\ntarget weight shape: ", t.shape)
+                  "\ntarget weight shape: ", t.shape)
 
             # Prepare loss matrix for sinkhorn.
             M = np.asarray(ot.dist(source_arr, target_arr))
@@ -57,7 +60,8 @@ if __name__ == '__main__':
             print("Loss matrix m shape : ", M.shape)
 
             # Run sinkhorn with dust bin for find corr.
-            sink = np.asarray(ot.sinkhorn(s, t, M, 100, numItermax=1200, stopThr=1e-9, verbose=False, method='sinkhorn'))
+            sink = np.asarray(ot.sinkhorn(
+                s, t, M, 100, numItermax=1200, stopThr=1e-9, verbose=False, method='sinkhorn'))
 
             # Take number of top corr from sinkhorn result, take also the corr weights and print corr result.
             corr_size = 500
@@ -94,27 +98,31 @@ if __name__ == '__main__':
             # corr_weights = (corr_weights / np.sum(corr_weights))  # Pn norm
 
             # Calc the mean of source and target point/FPFH with respect to points weight.
-            source_mean = np.sum(corr_values_source*corr_weights, axis=0)/np.sum(corr_weights)  # X0
-            target_mean = np.sum(corr_values_target*corr_weights, axis=0)/np.sum(corr_weights)  # Y0
+            source_mean = np.sum(
+                corr_values_source*corr_weights, axis=0)/np.sum(corr_weights)  # X0
+            target_mean = np.sum(
+                corr_values_target*corr_weights, axis=0)/np.sum(corr_weights)  # Y0
 
             # Calc the mean-reduced coordinate for Y and X
             corr_values_source = corr_values_source-source_mean  # An
             corr_values_target = corr_values_target-target_mean  # Bn
 
-            print(corr_values_source.shape, corr_values_target.shape, corr_weights.shape, source_mean.shape, target_mean.shape)
+            print(corr_values_source.shape, corr_values_target.shape,
+                  corr_weights.shape, source_mean.shape, target_mean.shape)
 
             # Compute the cross-covariance matrix H
             H = np.zeros((3, 3))
             for k in range(corr_size):
                 H = H + np.outer(corr_values_source[k, :],
-                                corr_values_target[k, :]) * corr_weights[k]
+                                 corr_values_target[k, :]) * corr_weights[k]
 
             # Print for debug
             print("corr_values_source: ", corr_values_source.shape, "\ncorr_values_target: ",
-                corr_values_target.shape, "\ncorr_weights: ", corr_weights, "\ncorr_weights sum: ", np.sum(corr_weights),
-                "\nsource mean shape: ", source_mean.shape, "\ntarget mean shape: ", target_mean.shape,
-                "\nsource mean: ", source_mean, "\ntarget mean: ", target_mean,
-                "\ncovariance matrix shape: ", H.shape, "\ncovariance matrix:\n", H)
+                  corr_values_target.shape, "\ncorr_weights: ", corr_weights, "\ncorr_weights sum: ", np.sum(
+                      corr_weights),
+                  "\nsource mean shape: ", source_mean.shape, "\ntarget mean shape: ", target_mean.shape,
+                  "\nsource mean: ", source_mean, "\ntarget mean: ", target_mean,
+                  "\ncovariance matrix shape: ", H.shape, "\ncovariance matrix:\n", H)
 
             # Calc SVD to cross-covariance matrix H.
             corr_tensor = o3d.core.Tensor(H)
@@ -132,7 +140,8 @@ if __name__ == '__main__':
             res = np.vstack([R.T, t])
             res = res.T
             res = np.vstack([res, np.array([0, 0, 0, 1])])
-            print("R:\n", R, "\nt:\n", t, "\ntransform res:\n", res, "\ninvers of original:\n")
+            print("R:\n", R, "\nt:\n", t, "\ntransform res:\n",
+                  res, "\ninvers of original:\n")
 
             # Check the transform matrix result
             UR.draw_registration_result(source, target, res, "Sinkhorn SVD")
