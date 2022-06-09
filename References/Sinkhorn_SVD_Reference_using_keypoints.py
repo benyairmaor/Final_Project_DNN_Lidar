@@ -3,7 +3,7 @@ import UtilitiesReference as UR
 import ot
 import open3d as o3d
 
-VISUALIZATION = True
+VISUALIZATION = False
 VERBOSE = True
 
 if __name__ == '__main__':
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION)
+                voxel_size, source_path, target_path, translation_M[i], "keypoints", VISUALIZATION)
 
             source_arr = np.asarray(source_fpfh.data).T
             s = (np.ones((source_arr.shape[0]+1))
