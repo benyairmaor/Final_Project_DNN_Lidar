@@ -178,3 +178,8 @@ if __name__ == '__main__':
 
             # Check the transform matrix result
             UR.draw_registration_result(source, target, res, "Sinkhorn SVD")
+
+            result_icp = UR.refine_registration_sinkhorn_svd(
+                source, target, res)
+            UR.draw_registration_result(
+                source, target, result_icp.transformation, "ICP")

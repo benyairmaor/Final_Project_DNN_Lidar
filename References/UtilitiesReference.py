@@ -233,6 +233,14 @@ def refine_registration_sinkhorn_ransac(source, target, result_ransac):
     return result
 
 
+def refine_registration_sinkhorn_svd(source, target, res):
+    distance_threshold = 0.1001
+    result = o3d.pipelines.registration.registration_icp(
+        source, target, distance_threshold, res,
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(True),
+        criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=1200))
+    return result
+
 ######################################################################
 ##################       Sinkhorn_SVD_Refernce      ##################
 ######################################################################
