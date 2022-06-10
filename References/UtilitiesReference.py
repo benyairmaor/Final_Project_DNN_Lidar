@@ -3,12 +3,32 @@ import open3d as o3d
 import copy
 import pandas as pd
 import ot
+import os
 import torch
 from dgl.geometry import farthest_point_sampler
+import matplotlib.pyplot as plt
 
 ######################################################################
 ##################         General Functions        ##################
 ######################################################################
+
+def savePCDS(source,target,title,pathToSave,trans):
+    source_temp = copy.deepcopy(source)
+    target_temp = copy.deepcopy(target)
+    source_temp.paint_uniform_color([0.555, 0.444, 0.111])
+    target_temp.paint_uniform_color([0.111, 0.444, 0.555])
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(visible = False,height=720,width=1280)
+    source_temp.transform(trans)
+    vis.add_geometry(source_temp)
+    vis.add_geometry(target_temp)
+    ctr = vis.get_view_control()
+    parameters = o3d.io.read_pinhole_camera_parameters("images/ScreenCamera.json")
+    ctr.convert_from_pinhole_camera_parameters(parameters)
+    img = vis.capture_screen_float_buffer(True)
+    if not os.path.exists(pathToSave):
+        os.makedirs(pathToSave)
+    plt.imsave(pathToSave+"/"+title+".png",np.asarray(img), dpi = 1)
 
 # Method get the data from global file or POC file
 def get_data_global(directory, POC):
@@ -99,7 +119,7 @@ def findCorrZeroOne(source, target, distanceThreshold):
 
 # For loading the point clouds : return -
 # (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
-def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, farthest_size=0.03, gamma_21=0.27, gamma_32=0.12):
+def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, farthest_size=0.03, gamma_21=0.27, gamma_32=0.12,pathSaveImg="images/eth/"):
     
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
@@ -110,12 +130,14 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VI
     
     if VISUALIZATION:
         draw_registration_result(source, target, np.identity(4), "Target Matching")
+    savePCDS(source, target, "Target_Matching", pathSaveImg, np.identity(4))
     
     source.transform(trans_init)
     source_down_c.transform(trans_init)
     
     if VISUALIZATION:
-        draw_registration_result(source, target, np.identity(4), "Problem")        
+        draw_registration_result(source, target, np.identity(4), "Problem")
+    savePCDS(source, target, "Problem", pathSaveImg, np.identity(4))    
         
     if method == "voxel":
         source_down, source_fpfh = preprocess_point_cloud_voxel(source, voxel_size)

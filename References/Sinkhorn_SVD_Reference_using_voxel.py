@@ -1,6 +1,7 @@
 import numpy as np
 import UtilitiesReference as UR
 import ot
+import os
 import open3d as o3d
 
 VISUALIZATION = True
@@ -89,12 +90,17 @@ if __name__ == '__main__':
             source_path = 'Datasets/eth/' + directory + '/' + sources[i]
             target_path = 'Datasets/eth/' + directory + '/' + targets[i]
 
+            method, _, typeM = os.path.basename(__file__).partition('using_')
+            typeM, _, _ = typeM.partition('.py')
+            path_saveImg = 'images/eth/' + \
+                directory + '/' + method + "_" + typeM + "_" + str(i)
+
             # Init voxel for less num of point clouds.
             voxel_size = 0.1  # means 5cm for this dataset ?
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION)
+                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION, pathSaveImg=path_saveImg)
 
             source_arr = np.asarray(source_fpfh.data).T
             s = (np.ones((source_arr.shape[0]+1))
@@ -165,6 +171,7 @@ if __name__ == '__main__':
             if VISUALIZATION:
                 UR.draw_registration_result(
                     pcdS, pcdT, np.identity(4), "Corr set")
+            UR.savePCDS(pcdS, pcdT, "Corr_set", path_saveImg, np.identity(4))
 
             # Norm to sum equal to one for corr weights.
             corr_weights = (corr_weights / np.sum(corr_weights))  # Pn norm
@@ -300,6 +307,8 @@ if __name__ == '__main__':
             if VISUALIZATION:
                 UR.draw_registration_result(
                     source, target, res, "Sinkhorn SVD result")
+            UR.savePCDS(source, target, "Sinkhorn_SVD_result",
+                        path_saveImg, res)
 
         avg_result_datasets_corr_matches.append(
             [directory, score_per_dataset_corr_matches / len(results[iter_dataset])])
