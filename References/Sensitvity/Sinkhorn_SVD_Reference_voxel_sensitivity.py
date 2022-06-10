@@ -156,6 +156,10 @@ if __name__ == '__main__':
                 res = res.T
                 res = np.vstack([res, np.array([0, 0, 0, 1])])
 
+                result_icp = UR.refine_registration_sinkhorn_svd_icp(
+                    source, target, res)
+                res = result_icp.transformation
+
                 # Calculate the score by 3 diffenerte approaches
                 # 1. Compare the correspondnce before and after the tarsformtion. (fitness) as far as target point from source the socre in decreases.
                 source_down_c.transform(res)
@@ -180,10 +184,10 @@ if __name__ == '__main__':
                 # 2. Calculate the overlap beteen the PCDs
                 overlap_score = 0
 
-                # if(result_icp.fitness > overlaps[i]):
-                #     overlap_score = 2 - (result_icp.fitness / overlaps[i])
-                # else:
-                #     overlap_score = (result_icp.fitness / overlaps[i])
+                if(result_icp.fitness > overlaps[i]):
+                    overlap_score = 2 - (result_icp.fitness / overlaps[i])
+                else:
+                    overlap_score = (result_icp.fitness / overlaps[i])
 
                 # 3. Compute the distanse between the resulp ICP translation matrix and the inverse of the problem matrix
                 rotaition_score = np.linalg.norm(

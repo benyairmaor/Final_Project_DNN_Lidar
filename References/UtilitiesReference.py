@@ -249,6 +249,15 @@ def refine_registration_sinkhorn_ransac(source, target, result_ransac):
         criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=1200))
     return result
 
+# Run local regestration by icp with transformation result from global regestretion such as RANSAC.
+def refine_registration_sinkhorn_svd_icp(source, target, res):
+    distance_threshold = 0.1001
+    result = o3d.pipelines.registration.registration_icp(
+        source, target, distance_threshold, res,
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(True),
+        criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=1200))
+    return result
+
 def farthest_point(pcd, numOfPoints):
     pcdArr = np.asarray(pcd.points)
     point_idx = farthest_point_sampler(torch.reshape(torch.tensor(pcdArr), (1, pcdArr.shape[0], pcdArr.shape[1])), numOfPoints, 0)

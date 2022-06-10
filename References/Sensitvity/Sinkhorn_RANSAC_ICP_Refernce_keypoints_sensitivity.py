@@ -1,3 +1,4 @@
+from math import gamma
 import numpy as np
 import UtilitiesReference as UR
 import ot
@@ -11,22 +12,31 @@ if __name__ == '__main__':
 
     # Initialization parameters for model
 
-    directories = ['apartment']
-    # , 'hauptgebaude', 'wood_autumn',
-    #    'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
+    directories = ['apartment', 'hauptgebaude', 'wood_autumn',
+                   'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
     idx_s = [3, 3, 7, 5, 2, 9, 8, 6]
     idx_f = [4, 1, -1, 1, 0, 4, -1, 2]
-    farthests_size = np.array([0.01, 0.015, 0.02, 0.025, 0.03, 0.05, 0.06])
-    voxel_size = 0.1
-    scores_fitness = np.ones((2, len(directories), len(farthests_size))) * -1
-    scores_overlap = np.ones((2, len(directories), len(farthests_size))) * -1
+    gamma_21_32s = np.array([[0.07, 0.07], [0.07, 0.12], [0.07, 0.18], [0.07, 0.27], [0.07, 0.4], [0.07, 0.5],
+                             [0.12, 0.07], [0.12, 0.12], [0.12, 0.18], [
+        0.12, 0.27], [0.12, 0.4], [0.12, 0.5],
+        [0.18, 0.07], [0.18, 0.12], [0.18, 0.18], [
+        0.18, 0.27], [0.18, 0.4], [0.18, 0.5],
+        [0.27, 0.07], [0.27, 0.12], [0.27, 0.18], [
+        0.27, 0.27], [0.27, 0.4], [0.27, 0.5],
+        [0.4, 0.07], [0.4, 0.12], [0.4, 0.18], [
+        0.4, 0.27], [0.4, 0.4], [0.4, 0.5],
+        [0.5, 0.07], [0.5, 0.12], [0.5, 0.18], [0.5, 0.27], [0.5, 0.4], [0.5, 0.5]])
+    scores_fitness = np.ones(
+        (2, len(directories), len(gamma_21_32s))) * -1
+    scores_overlap = np.ones(
+        (2, len(directories), len(gamma_21_32s))) * -1
     scores_matrix_distance_rotation = np.ones(
-        (2, len(directories), len(farthests_size))) * -1
+        (2, len(directories), len(gamma_21_32s))) * -1
     scores_matrix_distance_translation = np.ones(
-        (2, len(directories), len(farthests_size))) * -1
+        (2, len(directories), len(gamma_21_32s))) * -1
     size_dataset = []
     iter_dataset = 0
-
+    voxel_size = 0.1
     score_per_dataset_corr_matches = 0
     score_per_dataset_overlap = 0
     score_all_datasets_matrix_dist_rotation = 0
@@ -47,23 +57,25 @@ if __name__ == '__main__':
         score_per_dataset_matrix_dist_translation = 0
 
         for j in range(2):
-            for farthest_size in range(len(farthests_size)):
+            for gamma_21_32 in range(len(gamma_21_32s)):
+                print(j, gamma_21_32, '/', len(gamma_21_32s))
                 if j == 0:
                     i = idx_s[iter_dataset]
                 else:
                     i = idx_f[iter_dataset]
                 if idx_s == -1 or idx_f == -1:
                     break
-                print(j, farthest_size, '/', len(farthests_size))
 
                 overlap = overlaps[i]
                 # Save path for source & target pcd.
-                source_path = 'Datasets/eth/' + directory + '/' + sources[i]
-                target_path = 'Datasets/eth/' + directory + '/' + targets[i]
+                source_path = 'Datasets/eth/' + \
+                    directory + '/' + sources[i]
+                target_path = 'Datasets/eth/' + \
+                    directory + '/' + targets[i]
 
                 # Prepare data set by compute FPFH.
-                source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                    voxel_size, source_path, target_path, translation_M[i], "fartest_point", VISUALIZATION, farthests_size[farthest_size])
+                source, target, source_down, target_down, source_key, target_key, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
+                    voxel_size, source_path, target_path, translation_M[i], "keypoints", VISUALIZATION)
 
                 source_arr = np.asarray(source_fpfh.data).T
                 s = (np.ones((source_arr.shape[0]+1))
@@ -127,41 +139,13 @@ if __name__ == '__main__':
                     UR.draw_registration_result(
                         pcdS, pcdT, np.identity(4), "Corr set")
 
-                # Norm to sum equal to one for corr weights.
-                corr_weights = (corr_weights / np.sum(corr_weights))  # Pn norm
-
-                # Calc the mean of source and target point/FPFH with respect to points weight.
-                source_mean = np.sum(
-                    corr_values_source*corr_weights, axis=0)/np.sum(corr_weights)  # X0
-                target_mean = np.sum(
-                    corr_values_target*corr_weights, axis=0)/np.sum(corr_weights)  # Y0
-
-                # Calc the mean-reduced coordinate for Y and X
-                corr_values_source = corr_values_source-source_mean  # An
-                corr_values_target = corr_values_target-target_mean  # Bn
-
-                # Compute the cross-covariance matrix H
-                H = np.zeros((3, 3))
-                for k in range(corr_size):
-                    H = H + np.outer(corr_values_source[k, :],
-                                     corr_values_target[k, :]) * corr_weights[k]
-
-                # Calc SVD to cross-covariance matrix H.
-                corr_tensor = o3d.core.Tensor(H)
-                u, s, v_transpose = o3d.core.svd(corr_tensor)
-                u, s, v_transpose = u.numpy(), s.numpy(), v_transpose.numpy()
-
-                # Calc R and t from SVD result u and v transpose
-                R = (v_transpose.T) @ (u.T)
-                t = target_mean - R@source_mean
-
-                # Calc the transform matrix from R and t
-                res = np.vstack([R.T, t])
-                res = res.T
-                res = np.vstack([res, np.array([0, 0, 0, 1])])
-
-                result_icp = UR.refine_registration_sinkhorn_svd_icp(
-                    source, target, res)
+                # For sinkhorn correspondence result - run first glabal(RANSAC) and then local(ICP) regestration
+                result_ransac = UR.execute_global_registration_with_corr(
+                    source_down, target_down, corr)
+                # Execute local registration by ICP , Originals pcd and the global registration transformation result,
+                # print the result and the correspondence point set .
+                result_icp = UR.refine_registration_sinkhorn_ransac(
+                    source, target, result_ransac)
                 res = result_icp.transformation
 
                 # Calculate the score by 3 diffenerte approaches
@@ -201,65 +185,67 @@ if __name__ == '__main__':
 
                 if VISUALIZATION:
                     UR.draw_registration_result(
-                        source, target, res, "Sinkhorn SVD result")
+                        source, target, res, "ICP result")
 
-                scores_fitness[j][iter_dataset][farthest_size] = fitness
-                scores_overlap[j][iter_dataset][farthest_size] = overlap_score
-                scores_matrix_distance_rotation[j][iter_dataset][farthest_size] = rotaition_score
-                scores_matrix_distance_translation[j][iter_dataset][farthest_size] = translation_score
+                scores_fitness[j][iter_dataset][gamma_21_32] = fitness
+                scores_overlap[j][iter_dataset][gamma_21_32] = overlap_score
+                scores_matrix_distance_rotation[j][iter_dataset][gamma_21_32] = rotaition_score
+                scores_matrix_distance_translation[j][iter_dataset][gamma_21_32] = translation_score
         iter_dataset += 1
 
     for y in range(scores_fitness.shape[1]):
         for x in range(scores_fitness.shape[0]):
-            plt.plot(farthests_size, scores_fitness[x][y], color='green')
-            plt.xlabel('farthests size')
+            plt.plot(gamma_21_32s, scores_fitness[x][y], color='green')
+
+            plt.xlabel('gamma_21/gamma_32 size')
             plt.ylabel('scores (fitness)')
 
             # displaying the title
             if x == 0:
                 plt.title(directories[y] +
-                          " Correct solution - fitness per farthest")
+                          " Correct solution - fitness per voxel")
             else:
                 plt.title(directories[y] +
-                          " Uncorrect solution - fitness per farthest")
+                          " Uncorrect solution - fitness per voxel")
 
             plt.show()
 
-            plt.plot(farthests_size, scores_overlap[x][y], color='green')
-            plt.xlabel('farthests size')
+            plt.plot(gamma_21_32s, scores_overlap[x][y], color='green')
+
+            plt.xlabel('gamma_21/gamma_32 size')
             plt.ylabel('scores (overlap)')
 
             if x == 0:
-                plt.title(directories[y] + " Correct - overlap per farthest")
+                plt.title(directories[y] + " Correct - overlap per voxel")
             else:
-                plt.title(directories[y] + " Uncorrect - overlap per farthest")
+                plt.title(directories[y] + " Uncorrect - overlap per voxel")
 
             plt.show()
 
             plt.plot(
-                farthests_size, scores_matrix_distance_rotation[x][y], color='green')
-            plt.xlabel('farthests size')
+                gamma_21_32s, scores_matrix_distance_rotation[x][y], color='green')
+            plt.xlabel('gamma_21/gamma_32 size')
             plt.ylabel('scores (matrix distance rotation)')
 
             if x == 0:
                 plt.title(
-                    directories[y] + " Correct - matrix distance rotation per farthest")
+                    directories[y] + " Correct - matrix distance rotation per voxel")
             else:
                 plt.title(
-                    directories[y] + " Uncorrect - matrix distance rotation per farthest")
+                    directories[y] + " Uncorrect - matrix distance rotation per voxel")
 
             plt.show()
 
             plt.plot(
-                farthests_size, scores_matrix_distance_translation[x][y], color='green')
-            plt.xlabel('farthests size')
+                gamma_21_32s, scores_matrix_distance_translation[x][y], color='green')
+            plt.xlabel('gamma_21/gamma_32 size')
             plt.ylabel('scores (matrix distance translation)')
 
             if x == 0:
                 plt.title(
-                    directories[y] + " Correct - matrix distance translation per farthest")
+                    directories[y] + " Correct - matrix distance translation per voxel")
             else:
                 plt.title(
-                    directories[y] + " Uncorrect - matrix distance translation per farthest")
+                    directories[y] + " Uncorrect - matrix distance translation per voxel")
 
             plt.show()

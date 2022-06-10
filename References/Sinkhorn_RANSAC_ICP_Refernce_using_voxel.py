@@ -1,8 +1,9 @@
 import numpy as np
 import UtilitiesReference as UR
 import ot
+import open3d as o3d
 
-VISUALIZATION = False
+VISUALIZATION = True
 VERBOSE = True
 
 if __name__ == '__main__':
@@ -82,6 +83,8 @@ if __name__ == '__main__':
                 print("\ndirectory:" + directory + ", iter:" +
                       str(i + 1) + "/" + str(len(sources)), "\n")
 
+            overlap = overlaps[i]
+
             # Save path for source & target pcd.
             source_path = 'Datasets/eth/' + directory + '/' + sources[i]
             target_path = 'Datasets/eth/' + directory + '/' + targets[i]
@@ -93,17 +96,73 @@ if __name__ == '__main__':
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
                 voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION)
 
-            # Execute global registration by RANSAC and FPFH , print the result and the correspondence point set .
-            result_ransac = UR.execute_global_registration(
-                source_down, target_down, source_fpfh, target_fpfh)
+            source_arr = np.asarray(source_fpfh.data).T
+            s = (np.ones((source_arr.shape[0]+1))
+                 * (overlap.astype(float)))/source_arr.shape[0]
+            s[(source_arr.shape[0])] = 1-overlap.astype(float)
+            # Prepare target weight for sinkhorn with dust bin.
+            target_arr = np.asarray(target_fpfh.data).T
+            t = (np.ones((target_arr.shape[0]+1))
+                 * (overlap.astype(float)))/target_arr.shape[0]
+            t[(target_arr.shape[0])] = 1-overlap.astype(float)
 
+            if VERBOSE:
+                # Print weights and shapes of a and b weight vectors.
+                print("source FPFH shape: ", source_arr.shape,
+                      "\ntarget FPFH shape: ", target_arr.shape)
+                print("source weight shape: ", s.shape,
+                      "\ntarget weight shape: ", t.shape)
+
+            # Prepare loss matrix for sinkhorn.
+            M = np.asarray(ot.dist(source_arr, target_arr))
+            # M = np.einsum('dn,dm->nm', source_arr.T, target_arr.T)
+            # normalizeEinsumResult(M, source_arr, target_arr)
+
+            # Prepare dust bin for loss matrix M.
+            row_to_be_added = np.zeros(((target_arr.shape[0])))
+            column_to_be_added = np.zeros(((source_arr.shape[0]+1)))
+            M = np.vstack([M, row_to_be_added])
+            M = np.vstack([M.T, column_to_be_added])
+            M = M.T
+
+            if VERBOSE:
+                # Print loss matrix shape
+                print("Loss matrix m shape : ", M.shape)
+
+            # Run sinkhorn with dust bin for find corr.
+            sink = np.asarray(ot.sinkhorn_unbalanced(s, t, M, reg=100, reg_m=100,
+                              numItermax=12000, stopThr=1e-16, verbose=False, method='sinkhorn_stabilized'))
+
+            # Take number of top corr from sinkhorn result, take also the corr weights and print corr result.
+            corr_size = int(0.15 * overlap *
+                            np.minimum(M.shape[0]-1, M.shape[1]-1))
+            corr = np.zeros((corr_size, 2))
+            corr_weights = np.zeros((corr_size, 1))
+            j = 0
+            sink[M.shape[0]-1, :] = 0
+            sink[:, M.shape[1]-1] = 0
+            while j < corr_size:
+                max = np.unravel_index(np.argmax(sink, axis=None), sink.shape)
+                corr[j][0], corr[j][1] = max[0], max[1]
+                # Save corr weights.
+                corr_weights[j] = sink[max[0], max[1]]  # Pn
+                sink[max[0], :] = 0
+                sink[:, max[1]] = 0
+                j = j+1
+
+             # For sinkhorn correspondence result - run first glabal(RANSAC) and then local(ICP) regestration
+            result_ransac = UR.execute_global_registration_with_corr(
+                source_down, target_down, corr)
             # Execute local registration by ICP , Originals pcd and the global registration transformation result,
             # print the result and the correspondence point set .
-            result_icp = UR.refine_registration(source, target, result_ransac)
+            result_icp = UR.refine_registration_sinkhorn_ransac(
+                source, target, result_ransac)
+            res = result_icp.transformation
+            # If the result is not bigger then the overlap else if result bigger than the overlap BUT STILL MISMATCH
 
             # Calculate the score by 3 diffenerte approaches
             # 1. Compare the correspondnce before and after the tarsformtion. (fitness) as far as target point from source the socre in decreases.
-            source_down_c.transform(result_icp.transformation)
+            source_down_c.transform(res)
             fitness_ = 0.
             M_check = np.asarray(
                 ot.dist(np.asarray(source_down_c.points), np.asarray(target_down_c.points)))
@@ -154,9 +213,9 @@ if __name__ == '__main__':
 
             # 3. Compute the distanse between the resulp ICP translation matrix and the inverse of the problem matrix
             rotaition_score = np.linalg.norm(
-                result_icp.transformation[:3, :3] - np.linalg.inv(translation_M[i])[:3, :3])
+                res[:3, :3] - np.linalg.inv(translation_M[i])[:3, :3])
             translation_score = np.linalg.norm(
-                result_icp.transformation[:3, 3:] - np.linalg.inv(translation_M[i])[:3, 3:])
+                res[:3, 3:] - np.linalg.inv(translation_M[i])[:3, 3:])
 
             # Check how many problems solved with score above 70%
             if rotaition_score < 1 and translation_score < 1.5:
@@ -188,10 +247,9 @@ if __name__ == '__main__':
                       score_per_dataset_matrix_dist_translation / len(results[iter_dataset]))
                 print("avarage RMSE score until now =",
                       score_per_dataset_RMSE / len(results[iter_dataset]))
-
             if VISUALIZATION:
                 UR.draw_registration_result(
-                    source, target, result_icp.transformation, "ICP result")
+                    source, target, res, "Sinkhorn_RANSAC_ICP result")
 
         avg_result_datasets_corr_matches.append(
             [directory, score_per_dataset_corr_matches / len(results[iter_dataset])])

@@ -38,6 +38,13 @@ if __name__ == '__main__':
     problems_idx_solved_matrix_dist = []
     problems_idx_unsolved_matrix_dist = []
 
+    score_per_dataset_RMSE = 0
+    score_all_datasets_RMSE = 0
+    matches_RMSE = []
+    avg_result_datasets_RMSE = []
+    problems_idx_solved_RMSE = []
+    problems_idx_unsolved_RMSE = []
+
     for directory in directories:
 
         # Get all problem
@@ -63,6 +70,11 @@ if __name__ == '__main__':
         score_per_dataset_matrix_dist_translation = 0
         problems_idx_solved_matrix_dist.append([])
         problems_idx_unsolved_matrix_dist.append([])
+
+        matches_RMSE.append(0)
+        score_per_dataset_RMSE = 0
+        problems_idx_solved_RMSE.append([])
+        problems_idx_unsolved_RMSE.append([])
 
         for i in range(len(sources)):
 
@@ -132,6 +144,14 @@ if __name__ == '__main__':
             else:
                 problems_idx_unsolved_overlap[iter_dataset].append(i)
 
+            RMSE_score = result_icp.inlier_rmse
+            # Check how many problems solved with score above 70%
+            if RMSE_score < 0.3:
+                matches_RMSE[iter_dataset] += 1
+                problems_idx_solved_RMSE[iter_dataset].append(i)
+            else:
+                problems_idx_unsolved_RMSE[iter_dataset].append(i)
+
             # 3. Compute the distanse between the resulp ICP translation matrix and the inverse of the problem matrix
             rotaition_score = np.linalg.norm(
                 result_icp.transformation[:3, :3] - np.linalg.inv(translation_M[i])[:3, :3])
@@ -146,13 +166,14 @@ if __name__ == '__main__':
                 problems_idx_unsolved_matrix_dist[iter_dataset].append(i)
 
             results[iter_dataset].append(
-                [sources[i] + " " + targets[i], fitness, overlap_score, rotaition_score, translation_score])
+                [sources[i] + " " + targets[i], fitness, overlap_score, rotaition_score, translation_score, RMSE_score])
 
             # Calculate the total per problem per approch
             score_per_dataset_corr_matches += results[iter_dataset][i][1]
             score_per_dataset_overlap += results[iter_dataset][i][2]
             score_per_dataset_matrix_dist_rotation += results[iter_dataset][i][3]
             score_per_dataset_matrix_dist_translation += results[iter_dataset][i][4]
+            score_per_dataset_RMSE += results[iter_dataset][i][5]
 
             if VERBOSE:
                 print(results[iter_dataset][i][0], "fitness =", fitness, "overlap =", overlap_score,
@@ -165,6 +186,8 @@ if __name__ == '__main__':
                       score_per_dataset_matrix_dist_rotation / len(results[iter_dataset]))
                 print("avarage matrix distance score until now for translation =",
                       score_per_dataset_matrix_dist_translation / len(results[iter_dataset]))
+                print("avarage RMSE score until now =",
+                      score_per_dataset_RMSE / len(results[iter_dataset]))
 
             if VISUALIZATION:
                 UR.draw_registration_result(
@@ -176,6 +199,8 @@ if __name__ == '__main__':
             [directory, score_per_dataset_overlap / len(results[iter_dataset])])
         avg_result_datasets_matrix_dist.append(
             [directory, score_per_dataset_matrix_dist_rotation / len(results[iter_dataset]), score_per_dataset_matrix_dist_translation / len(results[iter_dataset])])
+        avg_result_datasets_RMSE.append(
+            [directory, score_per_dataset_RMSE / len(results[iter_dataset])])
 
         if VERBOSE:
             print("\n(fitness) avg result of dataset", directory, "is",
@@ -184,12 +209,15 @@ if __name__ == '__main__':
                   avg_result_datasets_overlap[iter_dataset][1])
             print("(matrix distance) avg result of dataset", directory, "is",
                   avg_result_datasets_matrix_dist[iter_dataset][1], avg_result_datasets_matrix_dist[iter_dataset][2])
+            print("(RMSE) avg result of dataset", directory, "is",
+                  avg_result_datasets_RMSE[iter_dataset][1])
 
         # Sum the score per dataset per approch
         score_all_datasets_corr_matches += avg_result_datasets_corr_matches[iter_dataset][1]
         score_all_datasets_overlap += avg_result_datasets_overlap[iter_dataset][1]
         score_all_datasets_matrix_dist_rotation += avg_result_datasets_matrix_dist[iter_dataset][1]
         score_all_datasets_matrix_dist_translation += avg_result_datasets_matrix_dist[iter_dataset][2]
+        score_all_datasets_RMSE += avg_result_datasets_RMSE[iter_dataset][1]
 
         iter_dataset += 1
 
@@ -202,6 +230,8 @@ if __name__ == '__main__':
         len(avg_result_datasets_matrix_dist)
     total_avg_matrix_dist_translation = score_all_datasets_matrix_dist_translation / \
         len(avg_result_datasets_matrix_dist)
+    total_avg_RMSE = score_all_datasets_RMSE / \
+        len(avg_result_datasets_RMSE)
 
     if VERBOSE:
         print()
@@ -223,8 +253,14 @@ if __name__ == '__main__':
                   problems_idx_solved_matrix_dist[i])
             print("Problem indexes unsolved:",
                   problems_idx_unsolved_matrix_dist[i])
+            print(avg_result_datasets_RMSE[i][0], '\'s RMSE score: ', avg_result_datasets_RMSE[i]
+                  [1], 'with ', matches_RMSE[i], 'problems solved with score over 70% from ', size_dataset[i])
+            print("Problem indexes solved:", problems_idx_solved_RMSE[i])
+            print("Problem indexes unsolved:",
+                  problems_idx_unsolved_RMSE[i])
             print()
         print("total avarage (fitness) = ", total_avg_corr_matches)
         print("total avarage (overlap) = ", total_avg_overlap)
         print("total avarage (matrix distance) = ",
               total_avg_matrix_dist_rotation, total_avg_matrix_dist_translation)
+        print("total avarage (RMSE) = ", total_avg_RMSE)

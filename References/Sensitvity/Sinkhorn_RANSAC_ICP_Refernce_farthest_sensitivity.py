@@ -1,10 +1,11 @@
 import numpy as np
+from sqlalchemy import true
 import UtilitiesReference as UR
 import ot
 import matplotlib.pyplot as plt
 import open3d as o3d
 
-VISUALIZATION = False
+VISUALIZATION = true
 VERBOSE = True
 
 if __name__ == '__main__':
@@ -127,41 +128,13 @@ if __name__ == '__main__':
                     UR.draw_registration_result(
                         pcdS, pcdT, np.identity(4), "Corr set")
 
-                # Norm to sum equal to one for corr weights.
-                corr_weights = (corr_weights / np.sum(corr_weights))  # Pn norm
-
-                # Calc the mean of source and target point/FPFH with respect to points weight.
-                source_mean = np.sum(
-                    corr_values_source*corr_weights, axis=0)/np.sum(corr_weights)  # X0
-                target_mean = np.sum(
-                    corr_values_target*corr_weights, axis=0)/np.sum(corr_weights)  # Y0
-
-                # Calc the mean-reduced coordinate for Y and X
-                corr_values_source = corr_values_source-source_mean  # An
-                corr_values_target = corr_values_target-target_mean  # Bn
-
-                # Compute the cross-covariance matrix H
-                H = np.zeros((3, 3))
-                for k in range(corr_size):
-                    H = H + np.outer(corr_values_source[k, :],
-                                     corr_values_target[k, :]) * corr_weights[k]
-
-                # Calc SVD to cross-covariance matrix H.
-                corr_tensor = o3d.core.Tensor(H)
-                u, s, v_transpose = o3d.core.svd(corr_tensor)
-                u, s, v_transpose = u.numpy(), s.numpy(), v_transpose.numpy()
-
-                # Calc R and t from SVD result u and v transpose
-                R = (v_transpose.T) @ (u.T)
-                t = target_mean - R@source_mean
-
-                # Calc the transform matrix from R and t
-                res = np.vstack([R.T, t])
-                res = res.T
-                res = np.vstack([res, np.array([0, 0, 0, 1])])
-
-                result_icp = UR.refine_registration_sinkhorn_svd_icp(
-                    source, target, res)
+                # For sinkhorn correspondence result - run first glabal(RANSAC) and then local(ICP) regestration
+                result_ransac = UR.execute_global_registration_with_corr(
+                    source_down, target_down, corr)
+                # Execute local registration by ICP , Originals pcd and the global registration transformation result,
+                # print the result and the correspondence point set .
+                result_icp = UR.refine_registration_sinkhorn_ransac(
+                    source, target, result_ransac)
                 res = result_icp.transformation
 
                 # Calculate the score by 3 diffenerte approaches
