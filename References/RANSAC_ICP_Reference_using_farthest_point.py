@@ -2,6 +2,8 @@ from sre_parse import Verbose
 import numpy as np
 import UtilitiesReference as UR
 import ot
+import os
+import open3d as o3d
 
 VISUALIZATION = False
 VERBOSE = True
@@ -87,16 +89,43 @@ if __name__ == '__main__':
             source_path = 'Datasets/eth/' + directory + '/' + sources[i]
             target_path = 'Datasets/eth/' + directory + '/' + targets[i]
 
+            method, _, typeM = os.path.basename(__file__).partition('using_')
+            typeM, _, _ = typeM.partition('.py')
+            path_saveImg = 'images/eth/' + \
+                directory + '/' + method + "_" + typeM + "_" + str(i)
+
             # Init voxel for less num of point clouds.
             voxel_size = 0.1  # means 5cm for this dataset ?
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i], "fartest_point", VISUALIZATION)
+                voxel_size, source_path, target_path, translation_M[i], "fartest_point", VISUALIZATION, pathSaveImg=path_saveImg)
 
             # Execute global registration by RANSAC and FPFH , print the result and the correspondence point set .
             result_ransac = UR.execute_global_registration(
                 source_down, target_down, source_fpfh, target_fpfh)
+
+            # Build numpy array for original points
+            source_arr = np.asarray(source_down.points)
+            target_arr = np.asarray(target_down.points)
+
+            # Take only the relevant indexes (without dust bin)
+            # Xn
+            corr_values_source = source_arr[np.asarray(
+                result_ransac.correspondence_set)[:, 0], :]
+            # Yn
+            corr_values_target = target_arr[np.asarray(
+                result_ransac.correspondence_set)[:, 1], :]
+
+            pcdS = o3d.geometry.PointCloud()
+            pcdS.points = o3d.utility.Vector3dVector(corr_values_source)
+            pcdT = o3d.geometry.PointCloud()
+            pcdT.points = o3d.utility.Vector3dVector(corr_values_target)
+            if VISUALIZATION:
+                UR.draw_registration_result(
+                    pcdS, pcdT, np.identity(4), "Corr set")
+            UR.savePCDS(pcdS, pcdT, "Corr_set_RANSAC",
+                        path_saveImg, np.identity(4))
 
             # Execute local registration by ICP , Originals pcd and the global registration transformation result,
             # print the result and the correspondence point set .
@@ -193,6 +222,8 @@ if __name__ == '__main__':
             if VISUALIZATION:
                 UR.draw_registration_result(
                     source, target, result_icp.transformation, "ICP result")
+            UR.savePCDS(source, target, "RANSAC_ICP_result",
+                        path_saveImg, result_icp.transformation)
 
         avg_result_datasets_corr_matches.append(
             [directory, score_per_dataset_corr_matches / len(results[iter_dataset])])

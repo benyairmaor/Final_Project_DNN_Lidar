@@ -4,7 +4,7 @@ import ot
 import os
 import open3d as o3d
 
-VISUALIZATION = True
+VISUALIZATION = False
 VERBOSE = True
 
 if __name__ == '__main__':
@@ -171,7 +171,8 @@ if __name__ == '__main__':
             if VISUALIZATION:
                 UR.draw_registration_result(
                     pcdS, pcdT, np.identity(4), "Corr set")
-            UR.savePCDS(pcdS, pcdT, "Corr_set", path_saveImg, np.identity(4))
+            UR.savePCDS(pcdS, pcdT, "Corr_set_Sinkhorn",
+                        path_saveImg, np.identity(4))
 
             # Norm to sum equal to one for corr weights.
             corr_weights = (corr_weights / np.sum(corr_weights))  # Pn norm
