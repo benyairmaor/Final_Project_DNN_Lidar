@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION)
+                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION, directoryName=directory)
             aaa = np.asarray(source.points)
             # Prepare source weight for sinkhorn with dust bin.
             source_arr = np.asarray(source_fpfh.data).T

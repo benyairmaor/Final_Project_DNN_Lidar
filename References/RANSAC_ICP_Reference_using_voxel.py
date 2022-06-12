@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION, pathSaveImg=path_saveImg)
+                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION, pathSaveImg=path_saveImg, directoryName=directory)
 
             # Execute global registration by RANSAC and FPFH , print the result and the correspondence point set .
             result_ransac = UR.execute_global_registration(
@@ -124,7 +124,7 @@ if __name__ == '__main__':
                 UR.draw_registration_result(
                     pcdS, pcdT, np.identity(4), "Corr set")
             UR.savePCDS(pcdS, pcdT, "Corr_set_RANSAC",
-                        path_saveImg, np.identity(4))
+                        path_saveImg, np.identity(4), directory)
 
             # Execute local registration by ICP , Originals pcd and the global registration transformation result,
             # print the result and the correspondence point set .
@@ -222,7 +222,7 @@ if __name__ == '__main__':
                 UR.draw_registration_result(
                     source, target, result_icp.transformation, "ICP result")
             UR.savePCDS(source, target, "RANSAC_ICP_result",
-                        path_saveImg, result_icp.transformation)
+                        path_saveImg, result_icp.transformation, directory)
 
         avg_result_datasets_corr_matches.append(
             [directory, score_per_dataset_corr_matches / len(results[iter_dataset])])

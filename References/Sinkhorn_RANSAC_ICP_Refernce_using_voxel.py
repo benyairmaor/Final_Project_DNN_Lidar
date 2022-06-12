@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION, pathSaveImg=path_saveImg)
+                voxel_size, source_path, target_path, translation_M[i], "voxel", VISUALIZATION, pathSaveImg=path_saveImg, directoryName=directory)
 
             source_arr = np.asarray(source_fpfh.data).T
             s = (np.ones((source_arr.shape[0]+1))
@@ -172,7 +172,7 @@ if __name__ == '__main__':
                 UR.draw_registration_result(
                     pcdS, pcdT, np.identity(4), "Corr set")
             UR.savePCDS(pcdS, pcdT, "Corr_set_Sinkhorn",
-                        path_saveImg, np.identity(4))
+                        path_saveImg, np.identity(4), directory)
 
             # For sinkhorn correspondence result - run first glabal(RANSAC) and then local(ICP) regestration
             result_ransac = UR.execute_global_registration_with_corr(
@@ -198,7 +198,7 @@ if __name__ == '__main__':
                 UR.draw_registration_result(
                     pcdS, pcdT, np.identity(4), "Corr set")
             UR.savePCDS(pcdS, pcdT, "Corr_set_RANSAC",
-                        path_saveImg, np.identity(4))
+                        path_saveImg, np.identity(4), directory)
 
             # Execute local registration by ICP , Originals pcd and the global registration transformation result,
             # print the result and the correspondence point set .
@@ -298,7 +298,7 @@ if __name__ == '__main__':
                 UR.draw_registration_result(
                     source, target, res, "Sinkhorn_RANSAC_ICP result")
             UR.savePCDS(source, target, "Sinkhorn_RANSAC_ICP_result",
-                        path_saveImg, res)
+                        path_saveImg, res, directory)
 
         avg_result_datasets_corr_matches.append(
             [directory, score_per_dataset_corr_matches / len(results[iter_dataset])])

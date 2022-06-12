@@ -6,8 +6,7 @@ import UtilitiesReference as UR
 
 if __name__ == '__main__':
 
-    directories = ['apartment', 'hauptgebaude', 'wood_autumn', 'gazebo_summer', 'gazebo_winter',
-                   'wood_summer', 'stairs', 'plain']
+    directories = ['plain']
     results = []
     avg_result_datasets = []
     iter_dataset = 0
@@ -15,7 +14,7 @@ if __name__ == '__main__':
     sum_datasets = 0
     for directory in directories:
         sources, targets, overlaps, translation_M = UR.get_data_global(
-            directory)
+            directory, True)
         results.append([])
         sum = 0
         for i in range(len(sources)):
@@ -29,8 +28,8 @@ if __name__ == '__main__':
             voxel_size = 0.2  # means voxel_size-cm for this dataset.
 
             # Prepare data set by compute FPFH.
-            source, target, source_down, target_down, source_fpfh, target_fpfh = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i])
+            source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
+                voxel_size, source_path, target_path, translation_M[i], "voxel", True)
 
             # Prepare source weight for sinkhorn with dust bin.
             source_arr = np.asarray(source_fpfh.data).T

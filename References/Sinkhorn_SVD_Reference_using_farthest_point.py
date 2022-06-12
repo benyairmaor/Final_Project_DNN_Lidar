@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     # Initialization parameters for model
 
-    directories = ['apartment', 'hauptgebaude', 'wood_autumn',
+    directories = ['hauptgebaude', 'apartment', 'hauptgebaude', 'wood_autumn',
                    'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
     results = []
     size_dataset = []
@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                voxel_size, source_path, target_path, translation_M[i], "fartest_point", VISUALIZATION, pathSaveImg=path_saveImg)
+                voxel_size, source_path, target_path, translation_M[i], "fartest_point", VISUALIZATION, pathSaveImg=path_saveImg, directoryName=directory)
 
             source_arr = np.asarray(source_fpfh.data).T
             s = (np.ones((source_arr.shape[0]+1))
@@ -172,7 +172,7 @@ if __name__ == '__main__':
                 UR.draw_registration_result(
                     pcdS, pcdT, np.identity(4), "Corr set")
             UR.savePCDS(pcdS, pcdT, "Corr_set_Sinkhorn",
-                        path_saveImg, np.identity(4))
+                        path_saveImg, np.identity(4), directory)
 
             # Norm to sum equal to one for corr weights.
             corr_weights = (corr_weights / np.sum(corr_weights))  # Pn norm
@@ -308,7 +308,7 @@ if __name__ == '__main__':
                 UR.draw_registration_result(
                     source, target, res, "Sinkhorn SVD result")
             UR.savePCDS(source, target, "Sinkhorn_SVD_result",
-                        path_saveImg, res)
+                        path_saveImg, res, directory)
 
         avg_result_datasets_corr_matches.append(
             [directory, score_per_dataset_corr_matches / len(results[iter_dataset])])
