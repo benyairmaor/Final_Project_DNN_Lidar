@@ -4,6 +4,7 @@ import copy
 import open3d as o3d
 from torch.utils.data import Dataset
 import Utilities as F
+import torch
 
 
 class ETHDataset(Dataset):
@@ -23,8 +24,8 @@ class ETHDataset(Dataset):
         
         # Extract problem from global file
         source, target, overlap, M = self.get_data(idx)
-        source_path = 'eth/' + self.dir_name + '/' + source
-        target_path = 'eth/' + self.dir_name + '/' + target
+        source_path = 'Datasets/eth/' + self.dir_name + '/' + source
+        target_path = 'Datasets/eth/' + self.dir_name + '/' + target
         source_, target_ = self.prepare_item(source_path, target_path, M)
 
         # TODO: Don't know if needed
@@ -32,15 +33,16 @@ class ETHDataset(Dataset):
             image = self.transform(image)
         if self.target_transform:
             label = self.target_transform(label)
-        
-        return np.asarray(source_.points), np.asarray(target_.points), overlap, M
+
+        fpfhSourceTargetConcatenate, edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx, source_down, target_down = F.preprocessing(source_, target_, overlap, M)
+        return np.asarray(fpfhSourceTargetConcatenate), np.asarray(source_down.points), np.asarray(target_down.points), edge_index_self, edge_index_cross, sourceSize, targetSize, scoreMatrix, source_voxelCorrIdx, target_voxelCorrIdx
 
     # Method to get all the problems from global file
     def get_data_global(self, directory):
         
         headers = ['id', 'source', 'target', 'overlap', 't1', 't2','t3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12']
-        read_file = pd.read_csv('eth/' + directory + '_global.txt', sep=" ", header=0, names=headers)
-        read_file.to_csv('eth/' + directory + '_global.csv', sep=',')
+        read_file = pd.read_csv('Datasets/eth/' + directory + '_global.txt', sep=" ", header=0, names=headers)
+        read_file.to_csv('Datasets/eth/' + directory + '_global.csv', sep=',')
         read_file = pd.DataFrame(read_file, columns=headers)        
         return read_file
 
@@ -53,7 +55,6 @@ class ETHDataset(Dataset):
             idx_col = (i - 1) % 4
             M[idx_row, idx_col] = self.pcd_list.at[idx, 't' + str(i)]
         M[3, :] = [0, 0, 0, 1]  
-               = F.preprocessing(self.pcd_list.at[idx, 'source'], self.pcd_list.at[idx, 'target'], self.pcd_list.at[idx, 'overlap'], M)   
         return self.pcd_list.at[idx, 'source'], self.pcd_list.at[idx, 'target'], self.pcd_list.at[idx, 'overlap'], M
 
     # Method to get source and target as PCDs
