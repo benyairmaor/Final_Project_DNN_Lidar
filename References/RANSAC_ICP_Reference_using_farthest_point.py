@@ -196,7 +196,7 @@ if __name__ == '__main__':
                 problems_idx_unsolved_matrix_dist[iter_dataset].append(i)
 
             results[iter_dataset].append(
-                [sources[i] + " " + targets[i], fitness, overlap_score, rotaition_score, translation_score, RMSE])
+                [sources[i] + " " + targets[i], fitness, overlap_score, rotaition_score, translation_score, RMSE_score])
 
             # Calculate the total per problem per approch
             score_per_dataset_corr_matches += results[iter_dataset][i][1]
