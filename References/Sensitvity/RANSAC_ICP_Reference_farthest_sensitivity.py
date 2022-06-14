@@ -10,9 +10,9 @@ if __name__ == '__main__':
 
     # Initialization parameters for model
 
-    directories = ['hauptgebaude', 'wood_autumn',
+    directories = ['apartment', 'hauptgebaude', 'wood_autumn',
                    'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
-    # ['apartment']
+
     idx_s = [3, 3, 7, 5, 2, 9, 8, 6]
     idx_f = [4, 1, -1, 1, 0, 4, -1, 2]
     farthests_size = np.array([0.01, 0.015, 0.02, 0.025, 0.03, 0.05, 0.06])
@@ -131,7 +131,8 @@ if __name__ == '__main__':
                 plt.title(directories[y] +
                           " Uncorrect solution - fitness per farthest")
 
-            plt.show()
+            # plt.show()
+            plt.savefig(directories[y]+'_'+x+'_fitness.png')
 
             plt.plot(farthests_size, scores_overlap[x][y], color='green')
             plt.xlabel('farthests size')
@@ -142,7 +143,8 @@ if __name__ == '__main__':
             else:
                 plt.title(directories[y] + " Uncorrect - overlap per farthest")
 
-            plt.show()
+            # plt.show()
+            plt.savefig(directories[y]+'_'+x+'_overlap.png')
 
             plt.plot(
                 farthests_size, scores_matrix_distance_rotation[x][y], color='green')
@@ -156,7 +158,8 @@ if __name__ == '__main__':
                 plt.title(
                     directories[y] + " Uncorrect - matrix distance rotation per farthest")
 
-            plt.show()
+            # plt.show()
+            plt.savefig(directories[y]+'_'+x+'_matrix_distanceR.png')
 
             plt.plot(
                 farthests_size, scores_matrix_distance_translation[x][y], color='green')
@@ -170,4 +173,5 @@ if __name__ == '__main__':
                 plt.title(
                     directories[y] + " Uncorrect - matrix distance translation per farthest")
 
-            plt.show()
+            # plt.show()
+            plt.savefig(directories[y]+'_'+x+'_matrix_distanceT.png')
