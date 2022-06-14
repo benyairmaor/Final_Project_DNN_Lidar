@@ -119,7 +119,7 @@ def findCorrZeroOne(source, target, distanceThreshold):
 
 # For loading the point clouds : return -
 # (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
-def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, farthest_size=0.03, gamma_21=0.27, gamma_32=0.12,pathSaveImg="images/eth/",directoryName=""):
+def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, farthest_size=0.05, gamma_21=0.27, gamma_32=0.12,pathSaveImg="images/eth/",directoryName=""):
     
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
