@@ -10,10 +10,9 @@ if __name__ == '__main__':
 
     # Initialization parameters for model
 
-    directories = ['hauptgebaude', 'wood_autumn',
+    directories = ['apartment', 'hauptgebaude', 'wood_autumn',
                    'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
-    # , 'hauptgebaude', 'wood_autumn',
-    #    'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
+
     idx_s = [3, 3, 7, 5, 2, 9, 8, 6]
     idx_f = [4, 1, -1, 1, 0, 4, -1, 2]
     farthests_size = np.array([0.01, 0.015, 0.02, 0.025, 0.03, 0.05, 0.06])
@@ -21,9 +20,9 @@ if __name__ == '__main__':
     scores_fitness = np.ones((2, len(directories), len(farthests_size))) * -1
     scores_overlap = np.ones((2, len(directories), len(farthests_size))) * -1
     scores_matrix_distance_rotation = np.ones(
-        (2, len(directories), len(farthests_size))) * -1
+        (2, len(directories), len(farthests_size))) * - 1
     scores_matrix_distance_translation = np.ones(
-        (2, len(directories), len(farthests_size))) * -1
+        (2, len(directories), len(farthests_size))) * - 1
     size_dataset = []
     iter_dataset = 0
 
@@ -32,6 +31,8 @@ if __name__ == '__main__':
     score_all_datasets_matrix_dist_rotation = 0
 
     for directory in directories:
+
+        print(directory)
 
         # Get all problem
         sources, targets, overlaps, translation_M = UR.get_data_global(
@@ -46,11 +47,12 @@ if __name__ == '__main__':
 
         for j in range(2):
             for farthest_size in range(len(farthests_size)):
+                print(j, farthest_size, '/', len(farthests_size))
                 if j == 0:
                     i = idx_s[iter_dataset]
                 else:
                     i = idx_f[iter_dataset]
-                if idx_s == -1 or idx_f == -1:
+                if i == -1:
                     break
 
                 # Save path for source & target pcd.

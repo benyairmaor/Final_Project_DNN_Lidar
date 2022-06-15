@@ -42,6 +42,7 @@ if __name__ == '__main__':
 
     for directory in directories:
 
+        print(directory)
         # Get all problem
         sources, targets, overlaps, translation_M = UR.get_data_global(
             directory, True)
@@ -55,11 +56,12 @@ if __name__ == '__main__':
 
         for j in range(2):
             for gamma_21_32 in range(len(gamma_21_32s)):
+                print(j, gamma_21_32, '/', len(gamma_21_32s))
                 if j == 0:
                     i = idx_s[iter_dataset]
                 else:
                     i = idx_f[iter_dataset]
-                if idx_s == -1 or idx_f == -1:
+                if i == -1:
                     break
 
                 # Save path for source & target pcd.
@@ -69,8 +71,8 @@ if __name__ == '__main__':
                     directory + '/' + targets[i]
 
                 # Prepare data set by compute FPFH.
-                source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
-                    voxel_size, source_path, target_path, translation_M[i], "keypoints", VISUALIZATION, gamma_21=gamma_21_32s[gamma_21_32][0], gamma_32=gamma_21_32s[gamma_21_32][1])
+                source, target, source_down, target_down, source_down_c, source_key, target_key, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(
+                    voxel_size, source_path, target_path, translation_M[i], "keypoints", VISUALIZATION,  farthest_size=0.03, gamma_21=gamma_21_32s[gamma_21_32][0], gamma_32=gamma_21_32s[gamma_21_32][1])
 
                 # Execute global registration by RANSAC and FPFH , print the result and the correspondence point set .
                 result_ransac = UR.execute_global_registration(
