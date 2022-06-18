@@ -23,9 +23,7 @@ https://github.com/iralabdisco/point_clouds_registration_benchmark
 - [dgl](https://www.dgl.ai/)
 - [matplotlib](https://matplotlib.org/)
 
-
-### Instructions
-
+### Using and explanation
 #### - The dataset must be in Dataset/eth/ dir (follow point_clouds_registration_benchmark instructions)
 #### - all tests and references is under References dir. 
 #### - just need to ensure that the data is under Dataset/eth/ dir and run the test file.
