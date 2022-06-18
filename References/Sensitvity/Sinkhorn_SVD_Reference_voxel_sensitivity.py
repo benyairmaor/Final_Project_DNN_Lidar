@@ -219,7 +219,9 @@ if __name__ == '__main__':
                 plt.title(directories[y] +
                           " Uncorrect solution - fitness per voxel")
 
-            plt.show()
+            # plt.show()
+            plt.savefig(directories[y]+'_'+str(x)+'_fitness.png')
+            plt.close("all")
 
             plt.plot(voxels_size, scores_overlap[x][y], color='green')
             plt.xlabel('voxels size')
@@ -230,7 +232,9 @@ if __name__ == '__main__':
             else:
                 plt.title(directories[y] + " Uncorrect - overlap per voxel")
 
-            plt.show()
+            # plt.show()
+            plt.savefig(directories[y]+'_'+str(x)+'_overlap.png')
+            plt.close("all")
 
             plt.plot(
                 voxels_size, scores_matrix_distance_rotation[x][y], color='green')
@@ -244,7 +248,9 @@ if __name__ == '__main__':
                 plt.title(
                     directories[y] + " Uncorrect - matrix distance rotation per voxel")
 
-            plt.show()
+            # plt.show()
+            plt.savefig(directories[y]+'_'+str(x)+'_matrix_distance_r.png')
+            plt.close("all")
 
             plt.plot(
                 voxels_size, scores_matrix_distance_translation[x][y], color='green')
@@ -258,4 +264,6 @@ if __name__ == '__main__':
                 plt.title(
                     directories[y] + " Uncorrect - matrix distance translation per voxel")
 
-            plt.show()
+            # plt.show()
+            plt.savefig(directories[y]+'_'+str(x)+'_matrix_distance_t.png')
+            plt.close("all")

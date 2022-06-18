@@ -9,7 +9,15 @@ from dgl.geometry import farthest_point_sampler
 ######################################################################
 ##################         General Functions        ##################
 ######################################################################
-
+# Run local regestration by icp with transformation result from global regestretion such as RANSAC.
+def refine_registration_sinkhorn_svd_icp(source, target, res):
+    distance_threshold = 0.1001
+    result = o3d.pipelines.registration.registration_icp(
+        source, target, distance_threshold, res,
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(True),
+        criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=1200))
+    return result
+    
 # Method get the data from global file or POC file
 def get_data_global(directory, POC):
     headers = ['id', 'source', 'target', 'overlap', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12']

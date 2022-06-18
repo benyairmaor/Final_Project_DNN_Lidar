@@ -11,7 +11,26 @@ import matplotlib.pyplot as plt
 ######################################################################
 ##################         General Functions        ##################
 ######################################################################
-
+def findCorrZeroOne(source, target, distanceThreshold):
+    # prepare list and copy data.
+    listSource = []
+    listTarget = []
+    tragetCopy = np.asarray(copy.deepcopy(target))
+    sourceCopy = np.asarray(copy.deepcopy(source))
+    
+    # calculate the dist between all points and copy.
+    M = np.asarray(ot.dist(sourceCopy, tragetCopy))
+    M_result = copy.deepcopy(M)
+    for i in range(len(sourceCopy)):
+        for j in range(len(tragetCopy)):
+            if M_result[i,j]<=distanceThreshold:
+                M_result[i,j]=1
+                listSource.append(i)
+                listTarget.append(j)
+            else:
+                M_result[i,j]=0
+    return M_result, listSource, listTarget
+    
 def savePCDS(source,target,title,pathToSave,trans,directory):
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
@@ -58,15 +77,21 @@ def draw_registration_result(source, target, transformation, title):
     source_temp.paint_uniform_color([1, 0.706, 0])
     target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
-    o3d.visualization.draw_geometries([source_temp, target_temp], title, 1280, 720)
+    o3d.visualization.draw_geometries([source_temp, target_temp], title, 1280, 720,
+                                  zoom=0.8,
+                                  front=[0.5439, -0.2333, -0.8060],
+                                  lookat=[2.4615, 2.1331, 1.338],
+                                  up=[-0.1781, -0.9708, 0.1608])
 
 
 # For pre prossecing the point cloud - make voxel and compute FPFH.
-def preprocess_point_cloud_voxel(pcd, voxel_size):
+def preprocess_point_cloud_voxel(pcd, voxel_size,trans_init,flag):
     radius_normal = voxel_size * 5
     radius_feature = voxel_size * 10
     pcd_down = pcd.voxel_down_sample(voxel_size)
     pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=250))
+    if flag:
+        pcd_down.transform(trans_init)
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down, o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=500))
     return pcd_down, pcd_fpfh
 
@@ -123,6 +148,7 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VI
     
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
+    draw_registration_result(source, target, np.identity(4), "Match")
     
     source_down_c = preprocess_point_cloud_for_test(source, voxel_size * 4)
     target_down_c =  preprocess_point_cloud_for_test(target, voxel_size * 4)
@@ -140,8 +166,16 @@ def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VI
     savePCDS(source, target, "Problem", pathSaveImg, np.identity(4),directoryName)    
         
     if method == "voxel":
-        source_down, source_fpfh = preprocess_point_cloud_voxel(source, voxel_size)
-        target_down, target_fpfh = preprocess_point_cloud_voxel(target, voxel_size)
+        source_down, source_fpfh = preprocess_point_cloud_voxel(source, voxel_size,trans_init,False)
+        target_down, target_fpfh = preprocess_point_cloud_voxel(target, voxel_size,trans_init,False)
+        # source.transform(trans_init)
+        # source_down.paint_uniform_color([0, 0, 0])
+        # o3d.visualization.draw_geometries([source_down, target_down],
+        #                           zoom=0.8,
+        #                           front=[0.5439, -0.2333, -0.8060],
+        #                           lookat=[2.4615, 2.1331, 1.338],
+        #                           up=[-0.1781, -0.9708, 0.1608],point_show_normal=True)
+        
         
         return source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget
 

@@ -15,7 +15,7 @@ if __name__ == '__main__':
                    'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
     idx_s = [3, 3, 7, 5, 2, 9, 8, 6]
     idx_f = [4, 1, -1, 1, 0, 4, -1, 2]
-    voxels_size = np.array([0.1, 0.2, 0.5, 1, 1.5, 2, 5])
+    voxels_size = np.array([0.2, 0.5, 1, 1.5, 2, 5])
     scores_fitness = np.ones((2, len(directories), len(voxels_size))) * -1
     scores_overlap = np.ones((2, len(directories), len(voxels_size))) * -1
     scores_matrix_distance_rotation = np.ones(
@@ -192,7 +192,7 @@ if __name__ == '__main__':
                           " Uncorrect solution - fitness per voxel")
 
             # plt.show()
-            plt.savefig(directories[y]+'_'+x+'fitness.png')
+            plt.savefig(directories[y]+'_'+str(x)+'fitness.png')
             plt.close("all")
 
             plt.plot(voxels_size, scores_overlap[x][y], color='green')
@@ -205,7 +205,7 @@ if __name__ == '__main__':
                 plt.title(directories[y] + " Uncorrect - overlap per voxel")
 
             # plt.show()
-            plt.savefig(directories[y]+'_'+x+'overlap.png')
+            plt.savefig(directories[y]+'_'+str(x)+'overlap.png')
             plt.close("all")
 
             plt.plot(
@@ -221,7 +221,7 @@ if __name__ == '__main__':
                     directories[y] + " Uncorrect - matrix distance rotation per voxel")
 
             # plt.show()
-            plt.savefig(directories[y]+'_'+x+'matrix_distance_r.png')
+            plt.savefig(directories[y]+'_'+str(x)+'matrix_distance_r.png')
             plt.close("all")
 
             plt.plot(
@@ -237,5 +237,5 @@ if __name__ == '__main__':
                     directories[y] + " Uncorrect - matrix distance translation per voxel")
 
             # plt.show()
-            plt.savefig(directories[y]+'_'+x+'matrix_distance_t.png')
+            plt.savefig(directories[y]+'_'+str(x)+'matrix_distance_t.png')
             plt.close("all")
