@@ -144,7 +144,7 @@ def findCorrZeroOne(source, target, distanceThreshold):
 
 # For loading the point clouds : return -
 # (original source , original target , voxel down source , voxel down target , FPFH source , FPFH target).
-def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, farthest_size=0.03, gamma_21=0.27, gamma_32=0.12,pathSaveImg="images/eth/",directoryName=""):
+def prepare_dataset(voxel_size, source_path, target_path, trans_init, method, VISUALIZATION, farthest_size=0.05, gamma_21=0.27, gamma_32=0.12,pathSaveImg="images/eth/",directoryName=""):
     
     source = copy.deepcopy(o3d.io.read_point_cloud(source_path))
     target = copy.deepcopy(o3d.io.read_point_cloud(target_path))
@@ -290,7 +290,7 @@ def execute_global_registration_with_corr(source_down, target_down, corr):
                 o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)]
     criteria = o3d.pipelines.registration.RANSACConvergenceCriteria(1000000, 0.9999)
     seed = 1
-    corr_size = 0.1001
+    corr_size = 0.9999999
     corr = o3d.utility.Vector2iVector(corr)
     result = o3d.pipelines.registration.registration_ransac_based_on_correspondence(
         source_down, target_down, corr, corr_size, estimation_method, ransac_n, checkers, criteria, seed)

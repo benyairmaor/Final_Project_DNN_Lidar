@@ -94,7 +94,7 @@ if __name__ == '__main__':
                 directory + '/' + method + "_" + typeM + "_" + str(i)
 
             # Init voxel for less num of point clouds.
-            voxel_size = 0.1  # means 5cm for this dataset ?
+            voxel_size = 0.2  # means 5cm for this dataset ?
 
             # Prepare data set by compute FPFH.
             source, target, source_down, target_down, source_down_c, target_down_c, source_fpfh, target_fpfh, M_result, listSource, listTarget = UR.prepare_dataset(

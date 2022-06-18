@@ -1,18 +1,18 @@
 import numpy as np
-from sqlalchemy import true
 import UtilitiesReference as UR
 import ot
 import matplotlib.pyplot as plt
 import open3d as o3d
 
-VISUALIZATION = true
+VISUALIZATION = False
 VERBOSE = True
 
 if __name__ == '__main__':
 
     # Initialization parameters for model
 
-    directories = ['apartment']
+    directories = ['hauptgebaude', 'wood_autumn',
+                   'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
     # , 'hauptgebaude', 'wood_autumn',
     #    'gazebo_summer', 'gazebo_winter', 'wood_summer', 'stairs',  'plain']
     idx_s = [3, 3, 7, 5, 2, 9, 8, 6]
