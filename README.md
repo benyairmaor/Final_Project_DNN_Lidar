@@ -14,7 +14,7 @@ To configure the environment, run the script setup.py. This will download the po
   - hauptgebaude
   - plain
   - wood_summer
-  - wood_autumn
+  - wood_autumn 
     
 
 Each directory corresponds to a daset and contains:
