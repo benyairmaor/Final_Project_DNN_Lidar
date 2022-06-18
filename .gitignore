@@ -8173,14 +8173,14 @@ tum/pioneer_slam3/1311878084.976197947.pcd
 tum/pioneer_slam3/1311878087.124652811.pcd
 tum/pioneer_slam3/1311878087.624133648.pcd
 tum/pioneer_slam3/1311878088.124396737.pcd
-eth/apartment_global_POC.csv
-eth/gazebo_summer_global_POC.csv
-eth/gazebo_winter_global_POC.csv
-eth/hauptgebaude_global_POC.csv
-eth/plain_global_POC.csv
-eth/stairs_global_POC.csv
-eth/wood_autumn_global_POC.csv
-eth/wood_summer_global_POC.csv
+# eth/apartment_global_POC.csv
+# eth/gazebo_summer_global_POC.csv
+# eth/gazebo_winter_global_POC.csv
+# eth/hauptgebaude_global_POC.csv
+# eth/plain_global_POC.csv
+# eth/stairs_global_POC.csv
+# eth/wood_autumn_global_POC.csv
+# eth/wood_summer_global_POC.csv
 Reports/Alpha Report - Maor Ben Yair and Netanel Reauven 2022.docx
 Reports/propsal - Maor Ben Yair and Netanel Reauven 2022.docx
 ETHDataSet.py
