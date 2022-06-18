@@ -32,3 +32,4 @@ https://github.com/iralabdisco/point_clouds_registration_benchmark
 #### - the refernces file save images for regestration process in Images/eth/_NAME_OF_SPESIFIC_METHOD_ dir
 #### - the sensitivity file save graphes of regestration process in GRAPHES/_NAME_OF_SPESIFIC_METHOD_ dir
 #### - the Experiment Tests dir include images from custom test
+#### - the Report dir include doc (~6000 words) about our result and conclusions.
