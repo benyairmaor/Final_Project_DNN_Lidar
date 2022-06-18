@@ -26,11 +26,9 @@ https://github.com/iralabdisco/point_clouds_registration_benchmark
 
 ### Instructions
 
-#### The dataset must be in Dataset/eth/ dir (follow point_clouds_registration_benchmark instructions)
-#### all tests and references is under References dir. 
-#### just need to ensure that the data is under Dataset/eth/ dir and run the test file.
-#### the refernces file save images for regestration process 
-#### the sensitivity file save graphes images of regestration process 
-
-  
-
+#### - The dataset must be in Dataset/eth/ dir (follow point_clouds_registration_benchmark instructions)
+#### - all tests and references is under References dir. 
+#### - just need to ensure that the data is under Dataset/eth/ dir and run the test file.
+#### - the refernces file save images for regestration process in Images/eth/_NAME_OF_SPESIFIC_METHOD_ dir
+#### - the sensitivity file save graphes of regestration process in GRAPHES/_NAME_OF_SPESIFIC_METHOD_ dir
+#### - the Experiment Tests dir include images from custom test
